@@ -1,0 +1,34 @@
+[package]
+name = "music-tag-cli"
+version = "1.0.0"
+authors = ["Sam <shengw1127@163.com>"]
+edition = "2021"
+rust-version = "1.70"
+repository = "https://github.com/magiclen/tw2s"
+homepage = "https://magiclen.org/tw2s"
+keywords = ["music", "tag", "dsf", "regex"]
+categories = ["command-line-utilities"]
+description = "A simple tool for edit music tag in command line. Also it could dconvert Traditional Chinese(TW) to Simple Chinese(SC)."
+license = "MIT"
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+concat-with = "0.2"
+terminal_size = "0.3"
+anyhow = "1"
+tempfile = "3.0.4"
+taglib = { path = "../taglib-rust" }
+audiotags = "0.5.0"
+walkdir = "2.5.0"
+lazy_static = "1.4.0"
+
+[dependencies.opencc-rust]
+version = "1.1"
+features = ["static-dictionaries"]
