@@ -1,9 +1,12 @@
 use anyhow::Error;
+
 fn main() -> Result<(), Error> {
-    let x = op::entry();
-    x
+    cli::entry()
 }
 
-#[cfg(test)]
-mod basic_test;
+mod args;
+mod cli;
+mod config;
+mod model;
 mod op;
+mod util;

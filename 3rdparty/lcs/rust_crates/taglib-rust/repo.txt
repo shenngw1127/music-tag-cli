@@ -1,0 +1,4 @@
+taglib-rust
+URL: https://github.com/shenngw1127/taglib-rust
+
+forked from https://github.com/ebassi/taglib-rust
