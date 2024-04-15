@@ -1,4 +1,4 @@
-# Music Tag Cli [English](README) | [中文繁體](README_zh-tw)
+# Music Tag Cli [English](README) | [中文繁體](README.zh-tw)
 
 这是一个用于在命令行中编辑音乐标签的简单工具。您可以通过SSH、NFS或Samba（Windows共享文件夹）连接您的音乐服务器，然后您就可以使用它修改文件中的音乐标签。`music-tag-cli`可以批量修改文件夹及其子文件夹的文件，或仅仅修改单个文件。它可以插入或追加序列数，也可以将繁体中文转换为简体中文。`music-tag-cli`支持FLAC, APE, WAV, AIFF, WV, TTA, MP3, M4A, OGG, MPC, OPUS, WMA, DSF, DFF, MP4等音频文件格式。
 
