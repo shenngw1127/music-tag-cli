@@ -1,6 +1,10 @@
-# Music Tag Cli [中文简体](./README_zh-cn.md) | [中文繁體](./README_zh-tw.md)
+# Music Tag Cli [中文简体](README_zh-cn) | [中文繁體](README_zh-tw)
 
 This is a simple tool for editing music tags in command line. You can connect to a private music server via SSH, NFS or Samba (Windows shared folder), and then you can use this tool to modify the music tags in the files. `music-tag-cli` can batch modify files in a folder and its subfolders, or just modify a single file. It was able to insert or append sequence numbers and also convert Traditional Chinese to Simplified Chinese. `music-tag-cli` supports FLAC, APE, WAV, AIFF, WV, TTA, MP3, M4A, OGG, MPC, OPUS, WMA, DSF, DFF, MP4 audio file formats.
+
+## Install
+
+Please read the [install guide](INSTALL). You can directly download the binary exe if you only wish run it on Windows platform.
 
 ## Tag list
 

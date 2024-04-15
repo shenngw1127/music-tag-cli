@@ -18,7 +18,7 @@
 - Other Dependencies
   - opencc
 
-Note: You can NOT install taglib by homebrew or apt-get, because that only 1.xx was in the repo. So you must manual install taglib via compile it by your self.
+Note: You can NOT install taglib by homebrew or apt-get, because that only 1.xx was in the repo. So you must download source code and install taglib via compile it by your self.
 
 ## Linux/Mac Steps
 
@@ -183,4 +183,7 @@ cargo build
 
 ## Windows
 
-If you use Windows, you can download the binary from repo directly. The compiled version was tested on `Windows 7 SP1 x86_64`, 8, 8.1, 10 and 11 should be fine. You may also distribute this program free,  please retain the license information.
+If you use Windows, you can download the binary from below internet drive directly. The compiled version was tested on `Windows 7 SP1 x86_64`, 8, 8.1, 10 and 11 should be fine. You may also distribute this program free,  please retain the license information.
+
+- Download from [Googe Drive](https://drive.google.com/drive/folders/1bil1Kk-gBq7naRsaA4H8bHkvtJ_xYv7d?usp=sharing)
+- Download from [Baidu pan](https://pan.baidu.com/s/1sMSg9QTgC5QcoCsqaac4dQ?pwd=3crt)
