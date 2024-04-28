@@ -1,14 +1,15 @@
-use anyhow::{anyhow, Error};
-use log::info;
 use std::borrow::Cow;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::config::CONFIG;
+use anyhow::{anyhow, Error};
+use log::info;
+
+use crate::config::get_tag_lab;
 use crate::model::MyTag;
 
 pub use self::audio_tags_impl::{AudioTagWrapper, available_suffix as audio_tags_available_suffix};
-pub use self::taglib_impl::{TaglibWrapper, available_suffix as taglib_available_suffix};
+pub use self::taglib_impl::{available_suffix as taglib_available_suffix, TaglibWrapper};
 
 mod audio_tags_impl;
 mod taglib_impl;
@@ -29,7 +30,7 @@ const AUDIO_TAGS: &'static str = "audiotags";
 impl<'c> TagImpl<'c> {
     pub fn new(path: &'c Path, dry_run: bool) -> Result<TagImpl, Error> {
         let file_name = path.to_string_lossy();
-        match &CONFIG.tag_lib {
+        match get_tag_lab() {
             Some(s) => {
                 if s.eq(AUDIO_TAGS) {
                     AudioTagWrapper::new(path)
@@ -51,7 +52,7 @@ impl<'c> TagImpl<'c> {
 }
 
 pub fn is_available_suffix(file_name: &str) -> bool {
-    match &CONFIG.tag_lib {
+    match get_tag_lab() {
         Some(s) => {
             if s.eq(AUDIO_TAGS) {
                 audio_tags_available_suffix(file_name)

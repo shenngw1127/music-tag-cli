@@ -1,6 +1,7 @@
+use anyhow::{anyhow, Error};
 use clap::ValueEnum;
-use enum_display::EnumDisplay;
 use lazy_static::lazy_static;
+use strum_macros::{Display as EnumDisplay};
 
 enum MyTagType {
     // Text tag
@@ -14,7 +15,7 @@ enum MyTagType {
 }
 
 #[derive(Debug, Copy, Clone, ValueEnum, Eq, Hash, PartialEq, EnumDisplay)]
-#[enum_display(case = "Kebab")]
+#[strum(serialize_all = "kebab-case")]
 pub enum MyTag {
     Title,
     Artist,
@@ -72,6 +73,15 @@ impl MyTag {
             MyTag::Copyright => MyTagType::Text,
         }
     }
+
+    pub fn from_str(input: &str) -> Result<&'static Self, Error> {
+        for tag in ALL_TAGS.iter() {
+            if format!("{}", tag).eq(input) {
+                return Ok(tag)
+            }
+        }
+        Err(anyhow!("unknown tag: {}", input))
+    }
 }
 
 lazy_static! {
@@ -109,6 +119,7 @@ lazy_static! {
 pub enum ConvEnProfile {
     Lowercase,
     Uppercase,
+    Titlecase,
 }
 
 #[derive(Clone, Debug, ValueEnum, PartialEq)]

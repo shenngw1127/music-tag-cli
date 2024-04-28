@@ -5,7 +5,8 @@ use itertools::Itertools;
 use log::{debug, error, Record};
 
 use crate::args::{App, Command};
-use crate::config::{CONFIG, to_log_level};
+use crate::config::get_log_level;
+
 use crate::op::Action;
 use crate::op::ConvEnAction;
 use crate::op::ConvUtf8Action;
@@ -44,8 +45,8 @@ pub fn my_default_format(
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
 fn init_logger() -> Result<LoggerHandle, Error> {
-    let log_level = to_log_level(&CONFIG.log_level);
-    let logger = Logger::try_with_str(log_level)?
+    let log_level = get_log_level();
+    let logger = Logger::try_with_str(to_log_level(&log_level))?
         .log_to_file(FileSpec::default().directory("./logs"))
         .format_for_files(my_default_format)
         .append()
@@ -61,11 +62,37 @@ fn init_logger() -> Result<LoggerHandle, Error> {
     Ok(logger)
 }
 
+fn to_log_level(i: &Option<String>) -> &str {
+    match i {
+        Some(s) => {
+            if s.eq("trace")
+                || s.eq("debug")
+                || s.eq("info")
+                || s.eq("warn")
+                || s.eq("error") {
+                s
+            } else {
+                "info"
+            }
+        }
+        None => "info",
+    }
+}
+
 pub fn entry() -> Result<(), Error> {
     let mut logger = init_logger()?;
 
+    do_command(&mut logger).map_err(|e| {
+        logger.flush();
+        let _ = logger.adapt_duplication_to_stdout(Duplicate::None);
+        error!("{:?}", e);
+        e
+    })
+}
+
+fn do_command(logger: &mut LoggerHandle) -> Result<(), Error> {
     let app = App::parse();
-    let res = match app.command {
+    match app.command {
         Command::ConvEn(args) => {
             debug!("args: {:?}", args);
             if args.global_opts.quiet {
@@ -77,7 +104,8 @@ pub fn entry() -> Result<(), Error> {
             ConvEnAction::new(&args.global_opts.directory,
                               args.global_opts.dry_run,
                               &tags,
-                              &args.profile).do_any()
+                              &args.global_opts.where_clause,
+                              &args.profile)?.do_any()
         }
         Command::ConvZh(args) => {
             debug!("args: {:?}", args);
@@ -90,6 +118,7 @@ pub fn entry() -> Result<(), Error> {
             ConvZhAction::new(&args.global_opts.directory,
                               args.global_opts.dry_run,
                               &tags,
+                              &args.global_opts.where_clause,
                               &args.profile)?.do_any()
         }
         Command::ConvUtf8(args) => {
@@ -103,6 +132,7 @@ pub fn entry() -> Result<(), Error> {
             ConvUtf8Action::new(&args.global_opts.directory,
                                 args.global_opts.dry_run,
                                 &tags,
+                                &args.global_opts.where_clause,
                                 &args.encoding_name)?.do_any()
         }
         Command::ModNum(args) => {
@@ -114,6 +144,7 @@ pub fn entry() -> Result<(), Error> {
             ModNumAction::new(&args.directory,
                               args.dry_run,
                               &tags,
+                              &args.where_clause,
                               &args.calc_method,
                               &args.operand,
                               &args.padding)?.do_any()
@@ -129,6 +160,7 @@ pub fn entry() -> Result<(), Error> {
             ModTextConstAction::new(&args.global_opts.directory,
                                     args.global_opts.dry_run,
                                     &tags,
+                                    &args.global_opts.where_clause,
                                     &args.value)?.do_any()
         }
         Command::ModTextRegex(args) => {
@@ -142,6 +174,7 @@ pub fn entry() -> Result<(), Error> {
             ModTextRegexAction::new(&args.global_opts.directory,
                                     args.global_opts.dry_run,
                                     &tags,
+                                    &args.global_opts.where_clause,
                                     &args.from,
                                     &args.ignore_case,
                                     &args.to)?.do_any()
@@ -156,6 +189,7 @@ pub fn entry() -> Result<(), Error> {
             SetConstAction::new(&args.global_opts.directory,
                                 args.global_opts.dry_run,
                                 &tags,
+                                &args.where_clause,
                                 &args.value,
                                 &args.set_when,
                                 &args.modify_mode)?.do_any()
@@ -179,10 +213,8 @@ pub fn entry() -> Result<(), Error> {
             let tags = args.tags.into_iter().unique().collect::<Vec<_>>();
             ViewAction::new(&args.directory,
                             &tags,
-                            args.with_properties).do_any()
+                            &args.where_clause,
+                            args.with_properties)?.do_any()
         }
-    };
-
-    res.unwrap_or_else(|e| error!("{}", e));
-    Ok(())
+    }
 }

@@ -5,12 +5,14 @@ use std::path::Path;
 
 use crate::model::{MyTag, TEXT_TAGS};
 use crate::op::tag_impl::TagImpl;
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::where_clause::WhereClause;
 
 pub struct ModTextRegexAction<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     re: Regex,
     to: &'a str,
 }
@@ -19,10 +21,12 @@ impl<'a> ModTextRegexAction<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
+               where_string: &Option<String>,
                from: &'a str,
                ignore_case: &'a bool,
-               to: &'a str) -> Result<ModTextRegexAction<'a>, Error> {
+               to: &'a str) -> Result<Self, Error> {
         let re = Self::get_regex(from, ignore_case)?;
+        let where_clause = get_where(where_string)?;
         Ok(ModTextRegexAction {
             dir,
             dry_run,
@@ -31,6 +35,7 @@ impl<'a> ModTextRegexAction<'a> {
             } else {
                 &TEXT_TAGS
             },
+            where_clause,
             re,
             to,
         })
@@ -80,6 +85,10 @@ impl WriteAction for ModTextRegexAction<'_> {
 
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
+    }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
     }
 }
 

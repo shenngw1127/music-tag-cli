@@ -4,14 +4,16 @@ use std::path::Path;
 
 use crate::args::ConstValueArgs;
 use crate::model::{ModifyMode, MyTag, SetWhen};
-use crate::op::{check_numeric_date_tags_must_be_overwrite, check_tags_not_empty, check_tags_type_value_type, check_value_is_ok, Action, WalkAction, WriteAllAction};
+use crate::op::{check_numeric_date_tags_must_be_overwrite, check_tags_not_empty, check_tags_type_value_type, check_value_is_ok, Action, WalkAction, WriteAllAction, get_where};
 use crate::op::WriteAction;
 use crate::op::tag_impl::{ReadTag, TagImpl, WriteTag};
+use crate::where_clause::WhereClause;
 
 pub struct SetConstAction<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     value: &'a ConstValueArgs,
     set_when: &'a SetWhen,
     modify_mode: &'a ModifyMode,
@@ -23,14 +25,17 @@ impl<'a> SetConstAction<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
+               where_string: &Option<String>,
                value: &'a ConstValueArgs,
                set_when: &'a SetWhen,
-               modify_mode: &'a ModifyMode) -> Result<SetConstAction<'a>, Error> {
+               modify_mode: &'a ModifyMode) -> Result<Self, Error> {
+        let where_clause = get_where(where_string)?;
         Self::check(tags, modify_mode, value).map(|_|
             SetConstAction {
                 dir,
                 dry_run,
                 tags,
+                where_clause,
                 value,
                 set_when,
                 modify_mode,
@@ -138,6 +143,10 @@ impl WriteAction for SetConstAction<'_> {
 
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
+    }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
     }
 }
 

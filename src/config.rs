@@ -1,18 +1,19 @@
+use std::fs;
+
 use homedir::get_my_home;
 use lazy_static::lazy_static;
 use serde::Deserialize;
-use std::fs;
 
 lazy_static! {
-    pub static ref CONFIG: Config = toml::from_str(
+    static ref CONFIG: Config = toml::from_str(
             &get_toml_content().unwrap_or_else(|| "".to_owned()))
         .unwrap_or_else(|_| Config::default());
 }
 
 #[derive(Deserialize)]
-pub struct Config {
-    pub(crate) log_level: Option<String>,
-    pub(crate) tag_lib: Option<String>,
+struct Config {
+    log_level: Option<String>,
+    tag_lib: Option<String>,
 }
 
 impl Default for Config {
@@ -35,19 +36,10 @@ fn get_toml_content() -> Option<String> {
     }
 }
 
-pub fn to_log_level(i: &Option<String>) -> &str {
-    match i {
-        Some(s) => {
-            if s.eq("trace")
-                || s.eq("debug")
-                || s.eq("info")
-                || s.eq("warn")
-                || s.eq("error") {
-                s
-            } else {
-                "info"
-            }
-        }
-        None => "info",
-    }
+pub fn get_log_level() -> &'static Option<String> {
+    &CONFIG.log_level
+}
+
+pub fn get_tag_lab() -> &'static Option<String> {
+    &CONFIG.tag_lib
 }

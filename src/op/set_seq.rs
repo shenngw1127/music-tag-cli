@@ -25,7 +25,7 @@ impl<'a> SetSeqAction<'a> {
                tags: &'a Vec<MyTag>,
                value: &'a Sequence,
                hyphen: &'a str,
-               modify_mode: &'a ModifyMode) -> Result<SetSeqAction<'a>, Error> {
+               modify_mode: &'a ModifyMode) -> Result<Self, Error> {
         Self::check(tags, modify_mode)
             .map(|_| {
                 SetSeqAction {

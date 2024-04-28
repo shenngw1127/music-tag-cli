@@ -1,25 +1,30 @@
 extern crate lazy_static;
 
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use anyhow::{anyhow, Error};
 use chrono::NaiveDate;
 use log::{debug, error, warn};
-use std::fs;
-use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
 use crate::args::ConstValueArgs;
 use crate::model::{ModifyMode, MyTag};
-use self::tag_impl::{is_available_suffix, ReadTag, TagImpl, WriteTag, WriteTagFile};
+use crate::where_clause::WhereClause;
 
 pub use self::conv_en::ConvEnAction;
-pub use self::conv_zh::ConvZhAction;
 pub use self::conv_utf8::ConvUtf8Action;
+pub use self::conv_zh::ConvZhAction;
 pub use self::mod_num::ModNumAction;
 pub use self::mod_text_const::ModTextConstAction;
 pub use self::mod_text_regex::ModTextRegexAction;
 pub use self::set_const::SetConstAction;
 pub use self::set_seq::SetSeqAction;
 pub use self::view::ViewAction;
+
+pub use self::tag_impl::ReadTag;
+
+use self::tag_impl::{is_available_suffix, TagImpl, WriteTag, WriteTagFile};
 
 mod conv_en;
 mod conv_utf8;
@@ -147,12 +152,11 @@ fn sorted_files(dir_entry: &DirEntry) -> Result<Vec<PathBuf>, Error> {
 }
 
 trait ReadAction: WalkAction {
-    fn get_tags_some(&self, t: &TagImpl);
+    fn get_tags_some(&self, t: &TagImpl) -> Result<(), Error>;
 
     fn do_one_file_read(&self, path: &Path) -> Result<(), Error> {
         let tag_impl = TagImpl::new(path, true)?;
-        self.get_tags_some(&tag_impl);
-        Ok(())
+        self.get_tags_some(&tag_impl)
     }
 }
 
@@ -165,6 +169,20 @@ trait WriteAction: WalkAction {
     }
 
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error>;
+
+    fn get_where(&self) -> &Option<WhereClause>;
+
+    fn check_where(&self, t: &TagImpl) -> Result<bool, Error> {
+        if let Some(where_clause) = self.get_where() {
+            match where_clause.check(t) {
+                Some(t) => Ok(t),
+                None => Err(anyhow!("Some error in where clause.")),
+            }
+        } else {
+            // None: don't check, equals check ok
+            Ok(true)
+        }
+    }
 }
 
 trait WriteTextAction: WriteAction {
@@ -184,6 +202,10 @@ trait WriteTextAction: WriteAction {
 
     fn set_tags_some_impl(&self, t: &mut TagImpl) -> Result<(), Error> {
         if self.get_tags().is_empty() {
+            return Ok(());
+        }
+
+        if !self.check_where(t)? {
             return Ok(());
         }
 
@@ -217,6 +239,10 @@ trait WriteTextAction: WriteAction {
 trait WriteNumAction: WriteAction {
     fn set_tags_some_impl(&self, t: &mut TagImpl) -> Result<(), Error> {
         if self.get_tags().is_empty() {
+            return Ok(());
+        }
+
+        if !self.check_where(t)? {
             return Ok(());
         }
 
@@ -268,6 +294,10 @@ trait WriteNumAction: WriteAction {
 trait WriteAllAction: WriteAction {
     fn set_tags_some_impl(&self, t: &mut TagImpl) -> Result<(), Error> {
         if self.get_tags().is_empty() {
+            return Ok(());
+        }
+
+        if !self.check_where(t)? {
             return Ok(());
         }
 
@@ -323,6 +353,16 @@ trait SeqWriteAction: SeqAction {
                      other: &Option<&str>) -> Result<(), Error>;
 }
 
+fn get_where(where_string: &Option<String>) -> Result<Option<WhereClause>, Error> {
+    if let Some(where_string) = where_string {
+        WhereClause::new(where_string)
+            .map(|t| Some(t))
+            .map_err(|s| anyhow!("{}", &s))
+    } else {
+        Ok(None)
+    }
+}
+
 fn check_input_path(input_path: &Path) -> Result<(), Error> {
     if !input_path.is_file() {
         Err(anyhow!("{input_path:?} is not file!"))
@@ -334,6 +374,15 @@ fn check_input_path(input_path: &Path) -> Result<(), Error> {
 fn err_could_not_perform_action_on_path(op_name: &str, path: &Path) -> Result<(), Error> {
     Err(anyhow!("Could NOT perform action {} on path: {:?}. Please check the path.",
         op_name, path))
+}
+
+// TODO: 改为macro
+fn string_to_option(new_value: String, value: &str) -> Option<String> {
+    if !new_value.eq(value) {
+        Some(new_value)
+    } else {
+        None
+    }
 }
 
 const MIN_PADDING: usize = 1;

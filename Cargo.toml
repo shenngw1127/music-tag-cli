@@ -1,6 +1,6 @@
 [package]
 name = "music-tag-cli"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Sam < shengw1127@gmail.com>"]
 edition = "2021"
 rust-version = "1.70"
@@ -10,6 +10,7 @@ keywords = ["music-tagging", "opencc", "flac", "dsf"]
 categories = ["command-line-utilities"]
 description = "Simple tool for edit music tag in command line. Also it could convert Traditional Chinese(TW) to Simple Chinese(SC)."
 license = "GPL-3"
+build = "build.rs"
 include = ["src/**/*", "Cargo.toml", "README*.md", "LICENSE"]
 
 [profile.release]
@@ -18,6 +19,11 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+[build-dependencies]
+cfgrammar = "0.13.4"
+lrlex = "0.13.4"
+lrpar = "0.13.4"
+
 [dependencies]
 audiotags = "0.5.0"
 taglib = { path = "../taglib-rust", features = ["use-pkgconfig"] }
@@ -25,13 +31,14 @@ taglib = { path = "../taglib-rust", features = ["use-pkgconfig"] }
 anyhow = "1"
 chrono = "0.4.35"
 clap = { version = "4", features = ["derive"] }
-enum-display = "0.1.4"
 flexi_logger = { version = "0.28", default_features = false }
 homedir = "0.2.1"
 itertools = "0.12.1"
 log = "0.4"
 lazy_static = "1.4.0"
 serde = { version = "1.0.197", features = ["derive"] }
+strum = "0.26"
+strum_macros = "0.26"
 toml = "0.8.12"
 walkdir = "2.5.0"
 
@@ -39,3 +46,9 @@ encoding_rs = "0.8.33"
 encoding = "0.2.33"
 opencc-rust = { version = "1.1", features = ["static-dictionaries"] }
 regex = "1.10"
+titlecase = "3.0.0"
+
+cfgrammar = "0.13.4"
+lrlex = "0.13.4"
+lrpar = "0.13.4"
+wildmatch = "2.3.3"

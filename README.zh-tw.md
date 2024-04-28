@@ -15,12 +15,13 @@
 | album        | 專輯名     | 文字 |
 | comment      | 註釋、評論 | 文字 |
 | genre        | 風格       | 文字 |
-| year         | 年度       | 日期 |
-| track        | 曲目編號   | 數字 |
 | album-artist | 專輯藝術家 | 文字 |
 | composer     | 作曲家     | 文字 |
+| year         | 年度       | 日期 |
+| date         | 日期       | 日期 |
+| track-number | 曲目編號   | 數字 |
 | track-total  | 曲目總數   | 數字 |
-| disc         | 碟片編號   | 數字 |
+| disc-number  | 碟片編號   | 數字 |
 | disc-total   | 碟片總數   | 數字 |
 | copyright    | 版權       | 文字 |
 
@@ -36,7 +37,7 @@
 - mod-num         加/減方式修改數字標籤
 - mod-text-const  修改文字標籤，包括增加（add）/替換（replace）/刪除（remove）一個固定值，也可以執行截斷（truncate）
 - mod-text-regex  以正則表示式替換的方式修改文字標籤
-- conv-en         轉換英文文字標籤，轉小寫（lowercase）或者轉大寫（uppercase）
+- conv-en         轉換英文文字標籤，轉小寫（lowercase）、大寫（uppercase）或者首字母大寫（titlecase）
 - conv-zh         轉換中文文字標籤，繁簡轉換
 - conv-utf8       轉換文字標籤為UTF-8編碼
 - help            幫助
@@ -47,11 +48,27 @@
 
 - 通用選項
 
-  以下選項適用於全部修改/設定標籤的命令。
+  以下選項適用於全部修改/設定/轉換標籤的命令。
 
   ```shell
       --dry-run                    如果設定為true，只顯示如何修改標籤，並不真正執行寫操作。並且資訊會記錄在日誌檔案中。這對於批次修改前的驗證，非常有用！
   -q, --quiet                      如果設定為true，只在控制檯顯示錯誤資訊
+  ```
+
+  以下選項可以用於除`set-seq`之外的全部命令。
+
+  ```shell
+      --where <WHERE_CLAUSE>
+          `Where`子句用於謂詞判定。這與SQL了類似，支援`NOT` `AND` `OR`邏輯運算子和`=` `<` `<=` `>` `>=` `!=` `<>`比較運算子，也可以使用`LIKE`，它支援`%` `_`萬用字元，`ILIKE`與之類似，但它是忽略大小寫的。注意在字串中的單引號`'`字元需要使用轉義，即`''`，和SQL字串類似。
+  ```
+  
+  注意：`=` `!=` `<>`用於文字標籤時是大小寫敏感的。
+
+  示例
+
+  ```shell
+  # 只顯示曲目編號在10～100之間的標籤
+  music-tag-cli view "~/Music/Music/John Denver" --where "track-number >= 10 and track-number <= 100"
   ```
 
 - view
@@ -154,9 +171,12 @@
 
 - conv-en
 
-  轉換英文文字標籤，轉小寫（lowercase）或者轉大寫（uppercase）
+  轉換英文文字標籤，轉小寫（lowercase）、大寫（uppercase）或者首字母大寫（titlecase）。
 
   ```shell
+  # 把標題轉為首字母大寫
+  music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+  
   # 把註釋轉為小寫
   music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
   

@@ -15,10 +15,11 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 | album        | album title  | text    |
 | comment      | comment      | text    |
 | genre        | genre        | text    |
-| year         | year         | date    |
-| track-number | track number | numeric |
 | album-artist | album artist | text    |
 | composer     | composer     | text    |
+| year         | year         | numeric |
+| date         | date         | date    |
+| track-number | track number | numeric |
 | track-total  | track total  | numeric |
 | disc-number  | disc number  | numeric |
 | disc-total   | disc total   | numeric |
@@ -36,7 +37,7 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 - mod-num         Modify numeric tags by increase / decrease an integer.
 - mod-text-const  Modify text tags by add / replace / remove a Constant value, also could do truncate.
 - mod-text-regex  Modify text tags by REGEX replace.
-- conv-en         Convert text tags in English between lowercase and uppercase.
+- conv-en         Convert text tags in English between lowercase, uppercase and titlecase.
 - conv-zh         Convert text tags in Chinese between Traditional and Simplified.
 - conv-utf8       Convert text tags to UTF-8 encoding.
 - help            Print this message or the help of the given subcommand(s)
@@ -47,11 +48,27 @@ Note: All file path in examples is **Unix/Linux/Mac** mode, if you use **Windows
 
 - General Options
 
-  These options are available for all command to modify / set tags.
+  These options are available for all command to modify / set / conv tags.
 
   ```shell
       --dry-run                    Only show how to modify tags, but do NOT write any file, if it was set as true.
   -q, --quiet                      Only show error in console, if it was set as true.
+  ```
+
+  This option are available for all commands except `set-seq`.
+
+  ```shell
+      --where <WHERE_CLAUSE>
+          `Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. Note: `'` should be escaped as `''` like in SQL string.
+  ```
+  
+  Note: `=` `!=` `<>` for text tag is case sensitive.
+
+  for example:
+
+  ```shell
+  # only view tags that's track-number between 10 - 100
+  music-tag-cli view "~/Music/Music/John Denver" --where "track-number >= 10 and track-number <= 100"
   ```
 
 - view
@@ -154,9 +171,12 @@ Note: All file path in examples is **Unix/Linux/Mac** mode, if you use **Windows
 
 - conv-en
 
-  Convert text tags in English between lowercase and uppercase.
+  Convert text tags in English between lowercase, uppercase and titlecase.
 
   ```shell
+  # Convert all title tag to titlecase
+  music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+
   # Convert all comment tag to lowercase
   music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
   

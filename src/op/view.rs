@@ -1,30 +1,36 @@
 use std::path::Path;
-use anyhow::Error;
+
+use anyhow::{anyhow, Error};
 use log::error;
 
-use crate::model::{MyTag, ALL_TAGS};
-use crate::op::{Action, ReadAction, WalkAction};
+use crate::model::{ALL_TAGS, MyTag};
+use crate::op::{Action, get_where, ReadAction, WalkAction};
 use crate::op::tag_impl::{ReadTag, TagImpl};
+use crate::where_clause::WhereClause;
 
 pub struct ViewAction<'a> {
     dir: &'a Path,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     with_properties: bool,
 }
 
 impl<'a> ViewAction<'a> {
     pub fn new(dir: &'a Path,
                tags: &'a Vec<MyTag>,
-               with_properties: bool) -> Self {
-        ViewAction {
+               where_string: &Option<String>,
+               with_properties: bool) -> Result<Self, Error> {
+        let where_clause = get_where(where_string)?;
+        Ok(ViewAction {
             dir,
             tags: if !tags.is_empty() {
                 tags
             } else {
                 &ALL_TAGS
             },
+            where_clause,
             with_properties,
-        }
+        })
     }
 
     const MAX_WIDTH: usize = 16 - 2;
@@ -47,25 +53,16 @@ impl<'a> ViewAction<'a> {
         self.println_text_tag(t, tag)
     }
 
-    fn println_properties<T: ReadTag + ?Sized>(t: &T) {
-        println!("-- PROPERTY --");
-        t.get_property_keys()
-            .map_or_else(
-                |e| error!("{:?}", e),
-                |keys| {
-                    let len = keys.len();
-                    if len == 0 {
-                        println!("no key.");
-                    } else if len == 1 {
-                        println!("{} key", len);
-                    } else {
-                        println!("{} keys.", len);
-                    }
-
-                    for key in keys {
-                        println!("{}: {:?}", key, t.get_property(&key).unwrap_or_default());
-                    }
-                });
+    fn check_where(&self, t: &TagImpl) -> Result<bool, Error> {
+        if let Some(where_clause) = &self.where_clause {
+            match where_clause.check(t) {
+                Some(t) => Ok(t),
+                None => Err(anyhow!("Some error in where clause.")),
+            }
+        } else {
+            // None: don't check, equals check ok
+            Ok(true)
+        }
     }
 }
 
@@ -98,9 +95,13 @@ impl WalkAction for ViewAction<'_> {
 }
 
 impl ReadAction for ViewAction<'_> {
-    fn get_tags_some(&self, t: &TagImpl) {
+    fn get_tags_some(&self, t: &TagImpl) -> Result<(), Error> {
         if self.tags.is_empty() {
-            return;
+            return Ok(());
+        }
+
+        if !self.check_where(t)? {
+            return Ok(());
         }
 
         println!("-- TAGS --");
@@ -126,9 +127,32 @@ impl ReadAction for ViewAction<'_> {
         }
 
         if self.with_properties {
-            Self::println_properties(t);
+            println_properties(t);
         }
+
+        Ok(())
     }
+}
+
+fn println_properties<T: ReadTag + ?Sized>(t: &T) {
+    println!("-- PROPERTY --");
+    t.get_property_keys()
+        .map_or_else(
+            |e| error!("{:?}", e),
+            |keys| {
+                let len = keys.len();
+                if len == 0 {
+                    println!("no key.");
+                } else if len == 1 {
+                    println!("{} key", len);
+                } else {
+                    println!("{} keys.", len);
+                }
+
+                for key in keys {
+                    println!("{}: {:?}", key, t.get_property(&key).unwrap_or_default());
+                }
+            });
 }
 
 const EMPTY_STR: &str = "";

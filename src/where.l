@@ -1,0 +1,18 @@
+%%
+\= "COMP_EQ"
+\!=|\<\> "COMP_NE"
+\< "COMP_LT"
+\> "COMP_GT"
+\<= "COMP_LE"
+\>= "COMP_GE"
+(?i)i?like "COMP_LIKE"
+\( "("
+\) ")"
+(?i)not "OP_NOT"
+(?i)and "OP_AND"
+(?i)or "OP_OR"
+year|track-number|track-total|disc-number|disc-number "NUM_TAG"
+title|artist|album|album-artist|comment|genre|composer|copyright|date "TEXT_TAG"
+[0-9]+ "NUM_VALUE"
+'(?:[^\']|(?:'')*)*' "TEXT_VALUE"
+[\t ]+ ;

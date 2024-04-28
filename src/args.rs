@@ -1,7 +1,8 @@
-use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
-use crate::model::{CalcMethod, ConvEnProfile, ConvZhProfile, AddDirection, ModifyMode, MyTag, QueryResultPosition, SetWhen, Direction};
+use clap::{Args, Parser, Subcommand, ValueEnum};
+
+use crate::model::{AddDirection, CalcMethod, ConvEnProfile, ConvZhProfile, Direction, ModifyMode, MyTag, QueryResultPosition, SetWhen};
 use crate::util::numeric::decimal_to_padding_string;
 
 #[derive(Parser, Debug)]
@@ -36,6 +37,13 @@ pub struct ViewArgs {
     #[arg(help = "Process specified tags, if not set, it will process ALL tags.")]
     pub tags: Vec<MyTag>,
 
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
     #[arg(value_hint = clap::ValueHint::FilePath)]
     #[arg(help = "The path of your music file(s). It must point to a file or directory path.")]
     pub directory: PathBuf,
@@ -54,6 +62,13 @@ pub struct SetConstArgs {
     #[arg(short, long, value_enum, default_value_t = ModifyMode::Overwrite)]
     #[arg(help = "How to modify the tag if tag has already exist, only worked for TEXT tags.")]
     pub modify_mode: ModifyMode,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
 
     #[clap(flatten)]
     pub global_opts: GlobalAllTagsDefaultEmpty,
@@ -221,6 +236,13 @@ pub struct ModNumArgs {
     #[arg(help = "Process specified NUMERIC tags, if not set, it will process ALL NUMERIC tags.")]
     pub tags: Vec<NumericTagArgs>,
 
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
     #[arg(long, default_value_t = false)]
     #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]
     pub dry_run: bool,
@@ -335,6 +357,13 @@ pub struct GlobalTextTagsDefaultAll {
     #[arg(short, long, value_delimiter = ',')]
     #[arg(help = "Process specified TEXT tags, if not set, it will process ALL TEXT tags.")]
     pub tags: Vec<TextTagArgs>,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
 
     #[arg(long, default_value_t = false)]
     #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]

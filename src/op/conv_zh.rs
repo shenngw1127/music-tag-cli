@@ -6,12 +6,14 @@ use std::env;
 use crate::model::ConvZhProfile;
 use crate::model::{MyTag, TEXT_TAGS};
 use crate::op::tag_impl::TagImpl;
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_where, string_to_option, WalkAction, WriteAction, WriteTextAction};
+use crate::where_clause::WhereClause;
 
 pub struct ConvZhAction<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     open_cc: OpenCC,
 }
 
@@ -19,8 +21,10 @@ impl<'a> ConvZhAction<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
-               profile: &'a ConvZhProfile) -> Result<ConvZhAction<'a>, Error> {
+               where_string: &Option<String>,
+               profile: &'a ConvZhProfile) -> Result<Self, Error> {
         let open_cc = Self::init_open_cc(profile)?;
+        let where_clause = get_where(where_string)?;
         Ok(ConvZhAction {
             dir,
             dry_run,
@@ -29,6 +33,7 @@ impl<'a> ConvZhAction<'a> {
             } else {
                 &TEXT_TAGS
             },
+            where_clause,
             open_cc,
         })
     }
@@ -80,17 +85,17 @@ impl WriteAction for ConvZhAction<'_> {
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
     }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
+    }
 }
 
 impl WriteTextAction for ConvZhAction<'_> {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
             let new_v = self.open_cc.convert(curr);
-            if !new_v.eq(curr) {
-                Some(new_v)
-            } else {
-                None
-            }
+            string_to_option(new_v, curr)
         } else {
             None
         }

@@ -1,14 +1,17 @@
 use anyhow::Error;
 use std::path::Path;
+use titlecase::titlecase;
 
 use crate::model::{ConvEnProfile, MyTag, TEXT_TAGS};
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_where, string_to_option, WalkAction, WriteAction, WriteTextAction};
 use crate::op::tag_impl::TagImpl;
+use crate::where_clause::WhereClause;
 
 pub struct ConvEnAction<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     profile: &'a ConvEnProfile,
 }
 
@@ -16,8 +19,10 @@ impl<'a> ConvEnAction<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
-               profile: &'a ConvEnProfile) -> Self {
-        ConvEnAction {
+               where_string: &Option<String>,
+               profile: &'a ConvEnProfile) -> Result<Self, Error> {
+        let where_clause = get_where(where_string)?;
+        Ok(ConvEnAction {
             dir,
             dry_run,
             tags: if !tags.is_empty() {
@@ -25,8 +30,9 @@ impl<'a> ConvEnAction<'a> {
             } else {
                 &TEXT_TAGS
             },
+            where_clause,
             profile,
-        }
+        })
     }
 }
 
@@ -66,6 +72,10 @@ impl WriteAction for ConvEnAction<'_> {
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
     }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
+    }
 }
 
 impl WriteTextAction for ConvEnAction<'_> {
@@ -74,14 +84,13 @@ impl WriteTextAction for ConvEnAction<'_> {
             let new_v = match self.profile {
                 ConvEnProfile::Lowercase => curr.to_lowercase(),
                 ConvEnProfile::Uppercase => curr.to_uppercase(),
+                ConvEnProfile::Titlecase => titlecase(curr),
             };
-            if !new_v.eq(curr) {
-                Some(new_v)
-            } else {
-                None
-            }
+
+            string_to_option(new_v, curr)
         } else {
             None
         }
     }
 }
+

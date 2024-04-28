@@ -3,18 +3,20 @@ use std::path::Path;
 
 use crate::args::TextConstArgs;
 use crate::model::{AddDirection, Direction, MyTag, QueryResultPosition, TEXT_TAGS};
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_where, WalkAction, WriteAction, WriteTextAction};
 use crate::op::tag_impl::TagImpl;
 use crate::util::str::{get_append_from_end, get_insert_from_beginning, get_replaced_any};
 use crate::util::str::{get_remove_from_beginning, get_remove_from_end};
 use crate::util::str::{get_replaced_beginning, get_replaced_end};
 use crate::util::str::{get_replaced_first, get_replaced_last};
 use crate::util::str::{rtruncate, truncate};
+use crate::where_clause::WhereClause;
 
 pub struct ModTextConstAction<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     value: &'a TextConstArgs,
 }
 
@@ -22,7 +24,9 @@ impl<'a> ModTextConstAction<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
-               value: &'a TextConstArgs) -> Result<ModTextConstAction<'a>, Error> {
+               where_string: &Option<String>,
+               value: &'a TextConstArgs) -> Result<Self, Error> {
+        let where_clause = get_where(where_string)?;
         Self::check(value).map(|_|
             ModTextConstAction {
                 dir,
@@ -32,6 +36,7 @@ impl<'a> ModTextConstAction<'a> {
                 } else {
                     &TEXT_TAGS
                 },
+                where_clause,
                 value,
             })
     }
@@ -102,6 +107,10 @@ impl WriteAction for ModTextConstAction<'_> {
 
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
+    }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
     }
 }
 

@@ -7,12 +7,14 @@ use std::path::Path;
 
 use crate::model::{MyTag, TEXT_TAGS};
 use crate::op::tag_impl::TagImpl;
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::where_clause::WhereClause;
 
 pub struct ConvUtf8Action<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     encoding: &'static EncodingRs,
 }
 
@@ -20,8 +22,10 @@ impl<'a> ConvUtf8Action<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
-               encoding_name: &'a str) -> Result<ConvUtf8Action<'a>, Error> {
+               where_string: &Option<String>,
+               encoding_name: &'a str) -> Result<Self, Error> {
         let encoding = Self::get_encoding(encoding_name)?;
+        let where_clause = get_where(where_string)?;
         Ok(ConvUtf8Action {
             dir,
             dry_run,
@@ -30,6 +34,7 @@ impl<'a> ConvUtf8Action<'a> {
             } else {
                 &TEXT_TAGS
             },
+            where_clause,
             encoding,
         })
     }
@@ -102,6 +107,10 @@ impl WriteAction for ConvUtf8Action<'_> {
 
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
+    }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
     }
 }
 

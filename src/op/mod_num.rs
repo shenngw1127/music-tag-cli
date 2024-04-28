@@ -3,13 +3,15 @@ use log::warn;
 use std::path::Path;
 
 use crate::model::{CalcMethod, MyTag};
-use crate::op::{check_tags_not_empty, Action, MAX_NUMBER, WalkAction, WriteAction, WriteNumAction};
+use crate::op::{check_tags_not_empty, Action, MAX_NUMBER, WalkAction, WriteAction, WriteNumAction, get_where};
 use crate::op::tag_impl::TagImpl;
+use crate::where_clause::WhereClause;
 
 pub struct ModNumAction<'a> {
     dir: &'a Path,
     dry_run: bool,
     tags: &'a Vec<MyTag>,
+    where_clause: Option<WhereClause>,
     calc_method: &'a CalcMethod,
     operand: &'a u32,
     padding: &'a usize,
@@ -19,15 +21,18 @@ impl<'a> ModNumAction<'a> {
     pub fn new(dir: &'a Path,
                dry_run: bool,
                tags: &'a Vec<MyTag>,
+               where_string: &Option<String>,
                calc_method: &'a CalcMethod,
                operand: &'a u32,
-               padding: &'a usize) -> Result<ModNumAction<'a>, Error> {
+               padding: &'a usize) -> Result<Self, Error> {
+        let where_clause = get_where(where_string)?;
         Self::check(tags)
             .map(|_| {
                 ModNumAction {
                     dir,
                     dry_run,
                     tags,
+                    where_clause,
                     calc_method,
                     operand,
                     padding,
@@ -75,6 +80,10 @@ impl WriteAction for ModNumAction<'_> {
 
     fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
         self.set_tags_some_impl(t)
+    }
+
+    fn get_where(&self) -> &Option<WhereClause> {
+        &self.where_clause
     }
 }
 
