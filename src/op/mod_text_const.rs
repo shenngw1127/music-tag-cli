@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Error};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::args::TextConstArgs;
-use crate::model::{AddDirection, Direction, MyTag, QueryResultPosition, TEXT_TAGS};
-use crate::op::{Action, get_where, WalkAction, WriteAction, WriteTextAction};
-use crate::op::tag_impl::TagImpl;
+use anyhow::{anyhow, Error};
+
+use crate::model::{AddDirection, Direction, MyTag, QueryResultPosition, TEXT_TAGS, TextConst};
+use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::op::tag_impl::ReadWriteTag;
 use crate::util::str::{get_append_from_end, get_insert_from_beginning, get_replaced_any};
 use crate::util::str::{get_remove_from_beginning, get_remove_from_end};
 use crate::util::str::{get_replaced_beginning, get_replaced_end};
@@ -12,44 +12,44 @@ use crate::util::str::{get_replaced_first, get_replaced_last};
 use crate::util::str::{rtruncate, truncate};
 use crate::where_clause::WhereClause;
 
-pub struct ModTextConstAction<'a> {
-    dir: &'a Path,
+pub struct ModTextConstAction {
+    it: Box<dyn Iterator<Item=PathBuf>>,
     dry_run: bool,
-    tags: &'a Vec<MyTag>,
+    tags: Vec<MyTag>,
     where_clause: Option<WhereClause>,
-    value: &'a TextConstArgs,
+    value: TextConst,
 }
 
-impl<'a> ModTextConstAction<'a> {
-    pub fn new(dir: &'a Path,
-               dry_run: bool,
-               tags: &'a Vec<MyTag>,
-               where_string: &Option<String>,
-               value: &'a TextConstArgs) -> Result<Self, Error> {
+impl ModTextConstAction {
+    pub fn new<P>(dir: P,
+                  dry_run: bool,
+                  tags: &[MyTag],
+                  where_string: &Option<String>,
+                  value: TextConst) -> Result<Self, Error>
+        where P: AsRef<Path>
+    {
+        let it = get_file_iterator(dir.as_ref())?;
         let where_clause = get_where(where_string)?;
-        Self::check(value).map(|_|
-            ModTextConstAction {
-                dir,
+        let tags = get_tags_from_args(tags, &TEXT_TAGS)?;
+        Self::check(&value).map(|_|
+            Self {
+                it,
                 dry_run,
-                tags: if !tags.is_empty() {
-                    tags
-                } else {
-                    &TEXT_TAGS
-                },
+                tags,
                 where_clause,
                 value,
             })
     }
 
-    fn check(value: &TextConstArgs) -> Result<(), Error> {
+    fn check(value: &TextConst) -> Result<(), Error> {
         check_text_const_args(value)?;
         Ok(())
     }
 }
 
-fn check_text_const_args(args: &TextConstArgs) -> Result<(), Error> {
+fn check_text_const_args(args: &TextConst) -> Result<(), Error> {
     match args {
-        TextConstArgs::Remove {
+        TextConst::Remove {
             direction: _direction,
             beginning_offset,
             end_offset
@@ -72,60 +72,52 @@ fn check_beginning_end(beginning_offset: &usize, end_offset: &Option<usize>) -> 
     }
 }
 
-impl Action for ModTextConstAction<'_> {
-    fn do_dir(&self) -> Result<(), Error> {
-        self.do_dir_walk()
-    }
-
-    fn do_file(&self) -> Result<(), Error> {
-        self.do_file_impl()
-    }
-
-    fn op_name(&self) -> &'static str {
-        "mod-text-const"
-    }
-
-    fn get_path(&self) -> &Path {
-        self.dir
-    }
-
-    fn get_tags(&self) -> &Vec<MyTag> {
-        self.tags
+impl Action for ModTextConstAction {
+    fn do_any(&mut self) -> Result<(), Error> {
+        self.do_all()
     }
 }
 
-impl WalkAction for ModTextConstAction<'_> {
-    fn do_one_file(&self, path: &Path) -> Result<(), Error> {
+impl WalkAction for ModTextConstAction {
+    fn get_iterator(&mut self) -> &mut dyn Iterator<Item=PathBuf> {
+        &mut self.it
+    }
+
+    fn do_one_file(&mut self, path: &Path) -> Result<bool, Error> {
         self.do_one_file_write(path)
-    }
-}
-
-impl WriteAction for ModTextConstAction<'_> {
-    fn is_dry_run(&self) -> bool {
-        self.dry_run
-    }
-
-    fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
-        self.set_tags_some_impl(t)
     }
 
     fn get_where(&self) -> &Option<WhereClause> {
         &self.where_clause
     }
+
+    fn get_tags(&self) -> &Vec<MyTag> {
+        &self.tags
+    }
 }
 
-impl WriteTextAction for ModTextConstAction<'_> {
+impl WriteAction for ModTextConstAction {
+    fn is_dry_run(&self) -> bool {
+        self.dry_run
+    }
+
+    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.set_tags_some_impl(t)
+    }
+}
+
+impl WriteTextAction for ModTextConstAction {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
-            match self.value {
-                TextConstArgs::Add {
+            match &self.value {
+                TextConst::Add {
                     add_direction,
                     offset,
                     addend
                 } => {
                     get_new_value_add(curr, add_direction, offset, addend)
                 }
-                TextConstArgs::Replace {
+                TextConst::Replace {
                     from,
                     position,
                     to,
@@ -133,7 +125,7 @@ impl WriteTextAction for ModTextConstAction<'_> {
                 } => {
                     get_new_value_replace(curr, from, position, to, *ignore_case)
                 }
-                TextConstArgs::Remove {
+                TextConst::Remove {
                     direction,
                     beginning_offset,
                     end_offset
@@ -143,7 +135,7 @@ impl WriteTextAction for ModTextConstAction<'_> {
                                          beginning_offset,
                                          end_offset)
                 }
-                TextConstArgs::Truncate {
+                TextConst::Truncate {
                     direction,
                     limit
                 } => {
@@ -151,8 +143,8 @@ impl WriteTextAction for ModTextConstAction<'_> {
                 }
             }
         } else {
-            match self.value {
-                TextConstArgs::Add {
+            match &self.value {
+                TextConst::Add {
                     add_direction: _add_direction,
                     offset,
                     addend
@@ -260,6 +252,7 @@ fn none_or_some_eq(o: &Option<String>, current: &str) -> bool {
 #[cfg(test)]
 mod test {
     use crate::model::{AddDirection, QueryResultPosition};
+
     use super::{get_new_value_add, get_new_value_replace, none_or_some_eq};
 
     #[test]

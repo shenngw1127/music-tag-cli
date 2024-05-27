@@ -31,9 +31,9 @@ pub fn get_append_from_end(original: &str,
 }
 
 pub fn get_replaced_any(current: &str,
-                       from: &str,
-                       to: &str,
-                       ignore_case: bool) -> Option<String> {
+                        from: &str,
+                        to: &str,
+                        ignore_case: bool) -> Option<String> {
     if !ignore_case {
         Some(current.replace(from, to))
     } else {

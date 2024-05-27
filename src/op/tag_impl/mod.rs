@@ -1,8 +1,8 @@
-use std::borrow::Cow;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{anyhow, Error};
+use as_dyn_trait::as_dyn_trait;
 use log::info;
 
 use crate::config::get_tag_lab;
@@ -14,38 +14,47 @@ pub use self::taglib_impl::{available_suffix as taglib_available_suffix, TaglibW
 mod audio_tags_impl;
 mod taglib_impl;
 
-pub struct TagImpl<'c> {
-    raw: TagImplRaw<'c>,
-    file_name: Cow<'c, str>,
+pub struct TagImpl<'a> {
+    raw: TagImplRaw<'a>,
     dry_run: bool,
 }
 
-enum TagImplRaw<'c> {
-    Taglib(TaglibWrapper<'c>),
-    AudioTag(AudioTagWrapper<'c>),
+enum TagImplRaw<'a> {
+    Taglib(TaglibWrapper<'a>),
+    AudioTag(AudioTagWrapper<'a>),
 }
 
 const AUDIO_TAGS: &'static str = "audiotags";
 
-impl<'c> TagImpl<'c> {
-    pub fn new(path: &'c Path, dry_run: bool) -> Result<TagImpl, Error> {
-        let file_name = path.to_string_lossy();
+impl<'a> TagImpl<'a> {
+    pub fn new(path: &'a dyn AsRef<Path>,
+               dry_run: bool,
+    ) -> Result<Self, Error> {
         match get_tag_lab() {
-            Some(s) => {
+            Some(ref s) => {
                 if s.eq(AUDIO_TAGS) {
                     AudioTagWrapper::new(path)
                         .map(|t|
-                            TagImpl { raw: TagImplRaw::AudioTag(t), file_name, dry_run })
+                            TagImpl {
+                                raw: TagImplRaw::AudioTag(t),
+                                dry_run,
+                            })
                 } else {
                     TaglibWrapper::new(path)
                         .map(|t|
-                            TagImpl { raw: TagImplRaw::Taglib(t), file_name, dry_run })
+                            TagImpl {
+                                raw: TagImplRaw::Taglib(t),
+                                dry_run,
+                            })
                 }
             }
             None => {
                 TaglibWrapper::new(path)
                     .map(|t|
-                        TagImpl { raw: TagImplRaw::Taglib(t), file_name, dry_run })
+                        TagImpl {
+                            raw: TagImplRaw::Taglib(t),
+                            dry_run,
+                        })
             }
         }
     }
@@ -53,7 +62,7 @@ impl<'c> TagImpl<'c> {
 
 pub fn is_available_suffix(file_name: &str) -> bool {
     match get_tag_lab() {
-        Some(s) => {
+        Some(ref s) => {
             if s.eq(AUDIO_TAGS) {
                 audio_tags_available_suffix(file_name)
             } else {
@@ -64,7 +73,14 @@ pub fn is_available_suffix(file_name: &str) -> bool {
     }
 }
 
-impl ReadTag for TagImpl<'_> {
+impl<'a> ReadTag for TagImpl<'a> {
+    fn get_path(&self) -> &Path {
+        match &self.raw {
+            TagImplRaw::Taglib(inner) => inner.get_path(),
+            TagImplRaw::AudioTag(inner) => inner.get_path(),
+        }
+    }
+
     fn get_text_tag(&self, key: &MyTag) -> Option<String> {
         match &self.raw {
             TagImplRaw::Taglib(inner) => inner.get_text_tag(key),
@@ -109,17 +125,17 @@ impl WriteTagFile for TagImpl<'_> {
                 TagImplRaw::AudioTag(inner) => inner.save(),
             }
         } else {
-            let path = PathBuf::from(self.file_name.to_string());
+            let path = self.get_path();
             if path.exists()
                 && path.is_file()
                 && fs::metadata(&path).map_or(
                 false, |m| !m.permissions().readonly()) {
-                info!("Save file {} ok.", self.file_name);
+                info!("Save file {:?} ok.", path);
                 Ok(())
             } else {
-                Err(anyhow!("Save file {} FAILED! \
+                Err(anyhow!("Save file {:?} FAILED! \
                 Please check if file exists and it's attribute is NOT \"Read-only\".",
-                    self.file_name))
+                    path))
             }
         }
     }
@@ -133,7 +149,7 @@ impl WriteTag for TagImpl<'_> {
                 TagImplRaw::AudioTag(inner) => inner.write_text_tag(key, value),
             }
         } else {
-            info!("file {} set {}: {}", self.file_name, key, value);
+            info!("file {:?} set {}: {}", self.get_path(), key, value);
         }
     }
 
@@ -144,11 +160,12 @@ impl WriteTag for TagImpl<'_> {
                 TagImplRaw::AudioTag(t) => t.write_numeric_tag(key, value, padding),
             }
         } else {
+            let path = self.get_path();
             match &self.raw {
                 TagImplRaw::Taglib(_) =>
-                    info!("file {} set {}: {} with padding {}", self.file_name, key, value, padding),
+                    info!("file {:?} set {}: {} with padding {}", path, key, value, padding),
                 TagImplRaw::AudioTag(_) =>
-                    info!("file {} set {}: {}", self.file_name, key, value),
+                    info!("file {:?} set {}: {}", path, key, value),
             }
         }
     }
@@ -156,7 +173,10 @@ impl WriteTag for TagImpl<'_> {
 
 impl ReadWriteTag for TagImpl<'_> {}
 
+#[as_dyn_trait]
 pub trait ReadTag {
+    fn get_path(&self) -> &Path;
+
     fn get_text_tag(&self, key: &MyTag) -> Option<String>;
     fn get_numeric_tag(&self, key: &MyTag) -> Option<u32>;
 

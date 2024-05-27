@@ -1,5 +1,15 @@
 # 更新日誌 [English](CHANGELOG.md) | [中文简体](CHANGELOG.zh-cn.md)
 
+## 1.0.2
+
+- (重構) 創建`Action`，然後調用方法`do_any(&mut self)`
+- (文檔) 正規表示式替換不支援正向/反向預查
+- (修復) 正規表示式替換只替換了第一個出現的
+- (功能) 增加命令`imp`
+- (功能) 增加命令`exp`
+- (功能) 增加命令`ren`
+- (功能) 增加命令`set-name`
+
 ## 1.0.1
 
 - (修復) 在設定`disc-total`之後設定`disc-number`，`disc-total`會消失

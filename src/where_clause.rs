@@ -159,7 +159,7 @@ impl WhereClause {
         }
     }
 
-    pub fn check<T: ReadTag>(&self, t: &T) -> Option<bool> {
+    pub fn check(&self, t: &dyn ReadTag) -> Option<bool> {
         match self {
             WhereClause::LogicOp(op) => {
                 let lhs = op.lhs.check(t)?;
@@ -301,6 +301,7 @@ pub struct NumComp {
 
 #[cfg(test)]
 mod test {
+    use std::path::{Path, PathBuf};
     use anyhow::Error;
 
     use crate::model::MyTag;
@@ -308,11 +309,16 @@ mod test {
     use crate::where_clause::WhereClause;
 
     #[derive(Debug)]
-    pub struct MockTagImpl {
+    pub struct MockTagImpl<'a> {
+        path: &'a Path,
         count: u32,
     }
 
-    impl ReadTag for MockTagImpl {
+    impl ReadTag for MockTagImpl<'_> {
+        fn get_path(&self) -> &Path {
+            self.path
+        }
+
         fn get_text_tag(&self, key: &MyTag) -> Option<String> {
             match key {
                 MyTag::Composer => Some("Lee's".to_owned()),
@@ -339,7 +345,8 @@ mod test {
 
     #[test]
     fn test_where() {
-        let mock = MockTagImpl { count: 5 };
+        let path = PathBuf::from("mock_file");
+        let mock = MockTagImpl { path: path.as_path(), count: 5 };
 
         // =
         let w = WhereClause::new("title='test'").expect("Error");

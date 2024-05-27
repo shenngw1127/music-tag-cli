@@ -1,59 +1,63 @@
-use anyhow::Error;
 use std::borrow::Cow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::args::ConstValueArgs;
-use crate::model::{ModifyMode, MyTag, SetWhen};
-use crate::op::{check_numeric_date_tags_must_be_overwrite, check_tags_not_empty, check_tags_type_value_type, check_value_is_ok, Action, WalkAction, WriteAllAction, get_where};
-use crate::op::WriteAction;
-use crate::op::tag_impl::{ReadTag, TagImpl, WriteTag};
+use anyhow::Error;
+
+use crate::model::{ConstValue, EMPTY_TAGS, ModifyMode, MyTag, SetWhen};
+use crate::op::{check_numeric_date_tags_must_be_overwrite, check_tags_type_value_type, check_value_is_ok, get_file_iterator, get_tags_from_args, get_where};
+use crate::op::{Action, WalkAction, WriteAction, WriteAllAction};
+use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
-pub struct SetConstAction<'a> {
-    dir: &'a Path,
+pub struct SetConstAction {
+    it: Box<dyn Iterator<Item=PathBuf>>,
     dry_run: bool,
-    tags: &'a Vec<MyTag>,
+    tags: Vec<MyTag>,
     where_clause: Option<WhereClause>,
-    value: &'a ConstValueArgs,
-    set_when: &'a SetWhen,
-    modify_mode: &'a ModifyMode,
+    value: ConstValue,
+    set_when: SetWhen,
+    modify_mode: ModifyMode,
     // cache
     text_value: String,
 }
 
-impl<'a> SetConstAction<'a> {
-    pub fn new(dir: &'a Path,
-               dry_run: bool,
-               tags: &'a Vec<MyTag>,
-               where_string: &Option<String>,
-               value: &'a ConstValueArgs,
-               set_when: &'a SetWhen,
-               modify_mode: &'a ModifyMode) -> Result<Self, Error> {
+impl SetConstAction {
+    pub fn new<P>(dir: P,
+                  dry_run: bool,
+                  tags: &[MyTag],
+                  where_string: &Option<String>,
+                  value: ConstValue,
+                  set_when: &SetWhen,
+                  modify_mode: &ModifyMode) -> Result<Self, Error>
+        where P: AsRef<Path>
+    {
+        let it = get_file_iterator(dir.as_ref())?;
+        let tags = get_tags_from_args(tags, &EMPTY_TAGS)?;
         let where_clause = get_where(where_string)?;
-        Self::check(tags, modify_mode, value).map(|_|
-            SetConstAction {
-                dir,
+        let text_value =  (&value.get_text_value()).to_owned();
+        Self::check(&tags, modify_mode, &value).map(|_|
+            Self {
+                it,
                 dry_run,
                 tags,
                 where_clause,
                 value,
-                set_when,
-                modify_mode,
-                text_value: value.get_text_value(),
+                set_when: set_when.clone(),
+                modify_mode: modify_mode.clone(),
+                text_value,
             })
     }
 
-    fn check(tags: &Vec<MyTag>,
+    fn check(tags: &[MyTag],
              modify_mode: &ModifyMode,
-             value: &ConstValueArgs) -> Result<(), Error> {
-        check_tags_not_empty(tags)?;
+             value: &ConstValue) -> Result<(), Error> {
         check_numeric_date_tags_must_be_overwrite(tags, modify_mode)?;
         check_tags_type_value_type(tags, value)?;
         check_value_is_ok(tags, value)?;
         Ok(())
     }
 
-    fn set_numeric_tag_real(&self, t: &mut TagImpl, tag: &MyTag) -> bool {
+    fn set_numeric_tag_real(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
         if let Some((value, padding)) = self.get_numeric_value() {
             t.write_numeric_tag(tag, value, padding);
             true
@@ -62,7 +66,7 @@ impl<'a> SetConstAction<'a> {
         }
     }
 
-    fn set_date_tag_real(&self, t: &mut TagImpl, tag: &MyTag) -> bool {
+    fn set_date_tag_real(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
         if let Some((value, _format)) = self.get_date_value() {
             t.write_text_tag(tag, value);
             true
@@ -94,71 +98,63 @@ impl<'a> SetConstAction<'a> {
     }
 
     fn get_numeric_value(&self) -> Option<(u32, usize)> {
-        match self.value {
-            ConstValueArgs::Num { value, padding } => Some((*value, *padding)),
+        match &self.value {
+            ConstValue::Num { value, padding } => Some((*value, *padding)),
             _ => None,
         }
     }
 
     fn get_date_value(&self) -> Option<(&str, &str)> {
-        match self.value {
-            ConstValueArgs::Date { value, format } => Some((value, format)),
+        match &self.value {
+            ConstValue::Date { value, format } => Some((value, format)),
             _ => None,
         }
     }
 }
 
-impl Action for SetConstAction<'_> {
-    fn do_dir(&self) -> Result<(), Error> {
-        self.do_dir_walk()
-    }
-
-    fn do_file(&self) -> Result<(), Error> {
-        self.do_file_impl()
-    }
-
-    fn op_name(&self) -> &'static str {
-        "set-const"
-    }
-
-    fn get_path(&self) -> &Path {
-        self.dir
-    }
-
-    fn get_tags(&self) -> &Vec<MyTag> {
-        self.tags
+impl Action for SetConstAction {
+    fn do_any(&mut self) -> Result<(), Error> {
+        self.do_all()
     }
 }
 
-impl WalkAction for SetConstAction<'_> {
-    fn do_one_file(&self, path: &Path) -> Result<(), Error> {
+impl WalkAction for SetConstAction {
+    fn get_iterator(&mut self) -> &mut dyn Iterator<Item=PathBuf> {
+        &mut self.it
+    }
+
+    fn do_one_file(&mut self, path: &Path) -> Result<bool, Error> {
         self.do_one_file_write(path)
-    }
-}
-
-impl WriteAction for SetConstAction<'_> {
-    fn is_dry_run(&self) -> bool {
-        self.dry_run
-    }
-
-    fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
-        self.set_tags_some_impl(t)
     }
 
     fn get_where(&self) -> &Option<WhereClause> {
         &self.where_clause
     }
+
+    fn get_tags(&self) -> &Vec<MyTag> {
+        &self.tags
+    }
 }
 
-impl WriteAllAction for SetConstAction<'_> {
-    fn set_text_tag(&self, t: &mut TagImpl, tag: &MyTag) -> bool {
-        if self.set_when == &SetWhen::Always && self.modify_mode == &ModifyMode::Overwrite {
+impl WriteAction for SetConstAction {
+    fn is_dry_run(&self) -> bool {
+        self.dry_run
+    }
+
+    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.set_tags_some_impl(t)
+    }
+}
+
+impl WriteAllAction for SetConstAction {
+    fn set_text_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
+        if &self.set_when == &SetWhen::Always && &self.modify_mode == &ModifyMode::Overwrite {
             let new_value = self.get_text_value();
             t.write_text_tag(tag, new_value);
             true
         } else {
             let current = t.get_text_tag(tag);
-            if should_write_text(&current, self.set_when) {
+            if should_write_text(&current, &self.set_when) {
                 let new_value = self.get_new_text(&current);
                 t.write_text_tag(tag, &new_value);
                 true
@@ -168,28 +164,34 @@ impl WriteAllAction for SetConstAction<'_> {
         }
     }
 
-    fn set_numeric_tag(&self, t: &mut TagImpl, tag: &MyTag) -> bool {
-        if self.set_when == &SetWhen::Always {
-            self.set_numeric_tag_real(t, tag)
-        } else {
-            let current = t.get_numeric_tag(tag);
-            if should_write_numeric(&current, &self.set_when) {
+    fn set_numeric_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
+        match &self.set_when {
+            SetWhen::Always => {
                 self.set_numeric_tag_real(t, tag)
-            } else {
-                false
+            }
+            set_when => {
+                let current = t.get_numeric_tag(tag);
+                if should_write_numeric(&current, set_when) {
+                    self.set_numeric_tag_real(t, tag)
+                } else {
+                    false
+                }
             }
         }
     }
 
-    fn set_date_tag(&self, t: &mut TagImpl, tag: &MyTag) -> bool {
-        if self.set_when == &SetWhen::Always {
-            self.set_date_tag_real(t, tag)
-        } else {
-            let current = t.get_text_tag(tag);
-            if should_write_text(&current, &self.set_when) {
+    fn set_date_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
+        match &self.set_when {
+            SetWhen::Always => {
                 self.set_date_tag_real(t, tag)
-            } else {
-                false
+            }
+            set_when => {
+                let current = t.get_text_tag(tag);
+                if should_write_text(&current, set_when) {
+                    self.set_date_tag_real(t, tag)
+                } else {
+                    false
+                }
             }
         }
     }
@@ -218,6 +220,7 @@ fn should_write_numeric(current: &Option<u32>, set_when: &SetWhen) -> bool {
 #[cfg(test)]
 mod test {
     use crate::model::SetWhen;
+
     use super::{should_write_numeric, should_write_text};
 
     #[test]

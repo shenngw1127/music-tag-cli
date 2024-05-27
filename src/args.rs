@@ -2,8 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-use crate::model::{AddDirection, CalcMethod, ConvEnProfile, ConvZhProfile, Direction, ModifyMode, MyTag, QueryResultPosition, SetWhen};
-use crate::util::numeric::decimal_to_padding_string;
+use crate::model::{AddDirection, CalcMethod, ConstValue, ConvEnProfile, ConvZhProfile, Direction, ModifyMode, MyTag, QueryResultPosition, SetWhen, TextConst};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -16,14 +15,46 @@ pub struct App {
 #[command(author, version, about, long_about = None)]
 pub enum Command {
     View(ViewArgs),
-    SetConst(SetConstArgs),
-    SetSeq(SetSeqArgs),
+    ConvEn(ConvEnArgs),
+    ConvUtf8(ConvUtf8Args),
+    ConvZh(ConvZhArgs),
+    Exp(ExpArgs),
+    Imp(ImpArgs),
     ModNum(ModNumArgs),
     ModTextConst(ModTexConstArgs),
     ModTextRegex(ModTextRegexArgs),
-    ConvEn(ConvEnArgs),
-    ConvZh(ConvZhArgs),
-    ConvUtf8(ConvUtf8Args),
+    SetConst(SetConstArgs),
+    SetName(SetNameArgs),
+    SetSeq(SetSeqArgs),
+    Ren(RenArgs),
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true, long_about = "Export tags to file.")]
+pub struct ExpArgs {
+    #[arg(long, default_value_t = false)]
+    #[arg(help = "Export properties or NOT (default).")]
+    pub with_properties: bool,
+
+    #[arg(short, long, value_delimiter = ',')]
+    #[arg(help = "Process specified tags, if not set, it will process ALL tags.")]
+    pub tags: Vec<MyTag>,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
+    #[arg(short, long)]
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "Output file, it must be NOT exists!")]
+    pub output_file: PathBuf,
+
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The path of your music file(s). It must point to a file or directory path.")]
+    pub directory: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -50,7 +81,39 @@ pub struct ViewArgs {
 }
 
 #[derive(Debug, Args)]
-#[command(arg_required_else_help = true, long_about = "Set a Constant value for tags.")]
+#[command(arg_required_else_help = true)]
+#[command(long_about = "Set tags from filename.")]
+pub struct SetNameArgs {
+    #[arg(short = 'w', long, value_enum, default_value_t = SetWhen::Always)]
+    #[arg(help = "When to set the tag.")]
+    pub set_when: SetWhen,
+
+    #[arg(long)]
+    #[arg(help = "Template for parsing filename like \"${track-number} - ${title} - ${artist}\".")]
+    pub template: String,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
+    #[arg(long, default_value_t = false)]
+    #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]
+    pub dry_run: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    #[arg(help = "Only show error in console, if it was set as true.")]
+    pub quiet: bool,
+
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The path of your music file(s). It must point to a file or directory path.")]
+    pub directory: PathBuf,
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true, long_about = "Set a constant value for tags.")]
 pub struct SetConstArgs {
     #[command(subcommand)]
     pub value: ConstValueArgs,
@@ -75,7 +138,7 @@ pub struct SetConstArgs {
 }
 
 #[derive(Debug, Args)]
-#[command(arg_required_else_help = true, long_about = "Set Sequence value for tags")]
+#[command(arg_required_else_help = true, long_about = "Set sequence value for tags.")]
 pub struct SetSeqArgs {
     #[clap(flatten)]
     pub value: Sequence,
@@ -138,14 +201,15 @@ pub enum ConstValueArgs {
     },
 }
 
-impl ConstValueArgs {
-    pub fn get_text_value(&self) -> String {
-        match self {
-            ConstValueArgs::Text { value } => value.clone(),
-            ConstValueArgs::Date { value, .. } => value.clone(),
-            ConstValueArgs::Num { value, padding } => {
-                decimal_to_padding_string(*value, *padding)
-            }
+impl From<ConstValueArgs> for ConstValue {
+    fn from(value: ConstValueArgs) -> Self {
+        match value {
+            ConstValueArgs::Text { value } =>
+                ConstValue::Text { value },
+            ConstValueArgs::Num { value, padding } =>
+                ConstValue::Num { value, padding },
+            ConstValueArgs::Date { value, format } =>
+                ConstValue::Date { value, format }
         }
     }
 }
@@ -216,6 +280,73 @@ pub enum TextConstArgs {
     },
 }
 
+impl From<TextConstArgs> for TextConst {
+    fn from(value: TextConstArgs) -> Self {
+        match value {
+            TextConstArgs::Add {
+                add_direction, offset, addend
+            } => TextConst::Add { add_direction, offset, addend },
+            TextConstArgs::Replace {
+                from, ignore_case, position, to
+            } => TextConst::Replace { from, ignore_case, position, to },
+            TextConstArgs::Remove {
+                direction, beginning_offset, end_offset
+            } => TextConst::Remove { direction, beginning_offset, end_offset },
+            TextConstArgs::Truncate {
+                direction, limit
+            } => TextConst::Truncate { direction, limit }
+        }
+    }
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true, long_about = "Import tags from file.")]
+pub struct ImpArgs {
+    #[arg(long, default_value_t = false)]
+    #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]
+    pub dry_run: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    #[arg(help = "Only show error in console, if it was set as true.")]
+    pub quiet: bool,
+
+    #[arg(short, long)]
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The base path for your JSON content `path` attribute, if it is a relative path.")]
+    pub base_directory: Option<PathBuf>,
+
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The source file you want to import.")]
+    pub source_file: PathBuf,
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true, long_about = "Rename file with tags.")]
+pub struct RenArgs {
+    #[arg(long, default_value_t = false)]
+    #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]
+    pub dry_run: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    #[arg(help = "Only show error in console, if it was set as true.")]
+    pub quiet: bool,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
+    #[arg(long)]
+    #[arg(help = "Template for new filename like \"${track-number} - ${title} - ${artist}\".")]
+    pub template: String,
+
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The path of your music file(s). It must point to a file or directory path.")]
+    pub directory: PathBuf,
+}
+
 #[derive(Debug, Args)]
 #[command(arg_required_else_help = true)]
 #[command(long_about = "Modify numeric tags by increase/decrease an integer.")]
@@ -256,16 +387,10 @@ pub struct ModNumArgs {
     pub directory: PathBuf,
 }
 
-impl ModNumArgs {
-    pub fn to_vec_my_tag(&self) -> Vec<MyTag> {
-        self.tags.iter().map(|e| { e.to_my_tag() }).collect()
-    }
-}
-
 #[derive(Debug, Args)]
 #[command(arg_required_else_help = true)]
-#[command(long_about = "Modify text tags by add / replace / remove a Constant value, \
-also could do truncate.")]
+#[command(long_about = "Modify text tags by add/replace/remove a constant value,\
+ also could truncate.")]
 pub struct ModTexConstArgs {
     #[command(subcommand)]
     pub value: TextConstArgs,
@@ -298,7 +423,8 @@ pub struct ModTextRegexArgs {
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
-#[command(long_about = "Convert text tags in Chinese between Traditional and Simplified.")]
+#[command(long_about = "Convert text tags in Chinese characters between Traditional / Simplified /\
+ Japanese Shinjitai.")]
 pub struct ConvZhArgs {
     #[arg(short, long, value_enum)]
     #[arg(help = "Profile, often used: s2t / t2s / jp2t / t2jp. \
@@ -311,7 +437,7 @@ pub struct ConvZhArgs {
 
 #[derive(Parser, Debug)]
 #[command(arg_required_else_help = true)]
-#[command(long_about = "Convert text tags in English between lowercase and uppercase.")]
+#[command(long_about = "Convert text tags in English between lowercase / uppercase / tilecase.")]
 pub struct ConvEnArgs {
     #[arg(short, long, value_enum)]
     #[arg(help = "Profile.")]
@@ -378,12 +504,6 @@ pub struct GlobalTextTagsDefaultAll {
     pub directory: PathBuf,
 }
 
-impl GlobalTextTagsDefaultAll {
-    pub fn to_vec_my_tag(&self) -> Vec<MyTag> {
-        self.tags.iter().map(|e| { e.to_my_tag() }).collect()
-    }
-}
-
 #[derive(Debug, Copy, Clone, ValueEnum, Eq, Hash, PartialEq)]
 pub enum TextTagArgs {
     Title,
@@ -396,9 +516,9 @@ pub enum TextTagArgs {
     Copyright,
 }
 
-impl TextTagArgs {
-    fn to_my_tag(&self) -> MyTag {
-        match self {
+impl From<TextTagArgs> for MyTag {
+    fn from(value: TextTagArgs) -> Self {
+        match value {
             TextTagArgs::Title => MyTag::Title,
             TextTagArgs::Artist => MyTag::Artist,
             TextTagArgs::AlbumTitle => MyTag::AlbumTitle,
@@ -420,9 +540,9 @@ pub enum NumericTagArgs {
     DiscTotal,
 }
 
-impl NumericTagArgs {
-    pub fn to_my_tag(&self) -> MyTag {
-        match self {
+impl From<NumericTagArgs> for MyTag {
+    fn from(value: NumericTagArgs) -> Self {
+        match value {
             NumericTagArgs::Year => MyTag::Year,
             NumericTagArgs::TrackNumber => MyTag::TrackNumber,
             NumericTagArgs::TrackTotal => MyTag::TrackTotal,

@@ -1,52 +1,43 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{anyhow, Error};
-use encoding::all::ISO_8859_1;
 use encoding::{EncoderTrap, Encoding};
+use encoding::all::ISO_8859_1;
 use encoding_rs::Encoding as EncodingRs;
 use log::error;
-use std::path::Path;
 
 use crate::model::{MyTag, TEXT_TAGS};
-use crate::op::tag_impl::TagImpl;
-use crate::op::{Action, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
-pub struct ConvUtf8Action<'a> {
-    dir: &'a Path,
+pub struct ConvUtf8Action {
+    it: Box<dyn Iterator<Item=PathBuf>>,
     dry_run: bool,
-    tags: &'a Vec<MyTag>,
+    tags: Vec<MyTag>,
     where_clause: Option<WhereClause>,
     encoding: &'static EncodingRs,
 }
 
-impl<'a> ConvUtf8Action<'a> {
-    pub fn new(dir: &'a Path,
-               dry_run: bool,
-               tags: &'a Vec<MyTag>,
-               where_string: &Option<String>,
-               encoding_name: &'a str) -> Result<Self, Error> {
-        let encoding = Self::get_encoding(encoding_name)?;
+impl ConvUtf8Action {
+    pub fn new<P>(dir: P,
+                  dry_run: bool,
+                  tags: &[MyTag],
+                  where_string: &Option<String>,
+                  encoding_name: &str) -> Result<Self, Error>
+        where P: AsRef<Path>
+    {
+        let encoding = get_encoding(encoding_name)?;
+        let it = get_file_iterator(dir.as_ref())?;
+        let tags = get_tags_from_args(tags, &TEXT_TAGS)?;
         let where_clause = get_where(where_string)?;
-        Ok(ConvUtf8Action {
-            dir,
+        Ok(Self {
+            it,
             dry_run,
-            tags: if !tags.is_empty() {
-                tags
-            } else {
-                &TEXT_TAGS
-            },
+            tags,
             where_clause,
             encoding,
         })
-    }
-
-    fn get_encoding(enc_name: &str) -> Result<&'static EncodingRs, Error> {
-        let lowercase_enc_name = &enc_name.to_lowercase();
-        if !lowercase_enc_name.eq("utf8") && !lowercase_enc_name.eq("utf-8") {
-            let encoding = EncodingRs::for_label(enc_name.as_bytes());
-            encoding.ok_or(anyhow!("Unsupported encoding: {}", enc_name))
-        } else {
-            Err(anyhow!("Encoding could NOT be UTF-8."))
-        }
     }
 
     fn convert(&self, current: &str) -> Option<String> {
@@ -72,54 +63,56 @@ impl<'a> ConvUtf8Action<'a> {
     }
 }
 
-impl Action for ConvUtf8Action<'_> {
-    fn do_dir(&self) -> Result<(), Error> {
-        self.do_dir_walk()
-    }
-
-    fn do_file(&self) -> Result<(), Error> {
-        self.do_file_impl()
-    }
-
-    fn op_name(&self) -> &'static str {
-        "conv-en"
-    }
-
-    fn get_path(&self) -> &Path {
-        self.dir
-    }
-
-    fn get_tags(&self) -> &Vec<MyTag> {
-        self.tags
+impl Action for ConvUtf8Action {
+    fn do_any(&mut self) -> Result<(), Error> {
+        self.do_all()
     }
 }
 
-impl WalkAction for ConvUtf8Action<'_> {
-    fn do_one_file(&self, path: &Path) -> Result<(), Error> {
+impl WalkAction for ConvUtf8Action {
+    fn get_iterator(&mut self) -> &mut dyn Iterator<Item=PathBuf> {
+        &mut self.it
+    }
+
+    fn do_one_file(&mut self, path: &Path) -> Result<bool, Error> {
         self.do_one_file_write(path)
-    }
-}
-
-impl WriteAction for ConvUtf8Action<'_> {
-    fn is_dry_run(&self) -> bool {
-        self.dry_run
-    }
-
-    fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
-        self.set_tags_some_impl(t)
     }
 
     fn get_where(&self) -> &Option<WhereClause> {
         &self.where_clause
     }
+
+    fn get_tags(&self) -> &Vec<MyTag> {
+        &self.tags
+    }
 }
 
-impl WriteTextAction for ConvUtf8Action<'_> {
+impl WriteAction for ConvUtf8Action {
+    fn is_dry_run(&self) -> bool {
+        self.dry_run
+    }
+
+    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.set_tags_some_impl(t)
+    }
+}
+
+impl WriteTextAction for ConvUtf8Action {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
             self.convert(curr)
         } else {
             None
         }
+    }
+}
+
+fn get_encoding(enc_name: &str) -> Result<&'static EncodingRs, Error> {
+    let lowercase_enc_name = &enc_name.to_lowercase();
+    if !lowercase_enc_name.eq("utf8") && !lowercase_enc_name.eq("utf-8") {
+        let encoding = EncodingRs::for_label(enc_name.as_bytes());
+        encoding.ok_or(anyhow!("Unsupported encoding: {}", enc_name))
+    } else {
+        Err(anyhow!("Encoding could NOT be UTF-8."))
     }
 }

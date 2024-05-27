@@ -4,7 +4,6 @@ use anyhow::{anyhow, Error};
 use audiotags::{AudioTag, Tag};
 use lazy_static::lazy_static;
 use log::{info, warn};
-use std::borrow::Cow;
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -12,17 +11,17 @@ use crate::model::MyTag;
 use crate::op::{MAX_NUMBER, MIN_NATURAL_NUMBER};
 use super::{ReadTag, ReadWriteTag, WriteTag, WriteTagFile};
 
-pub struct AudioTagWrapper<'c> {
-    file_name: Cow<'c, str>,
+pub struct AudioTagWrapper<'a> {
+    file_name: &'a Path,
     tag: Box<dyn AudioTag + Send + Sync>,
 }
 
-impl AudioTagWrapper<'_> {
-    pub fn new(file_path: &Path) -> Result<AudioTagWrapper, Error> {
-        let file_name = file_path.to_string_lossy();
-        info!("Open file {}", &file_name);
+impl<'a> AudioTagWrapper<'a> {
+    pub fn new(file_path: &'a dyn AsRef<Path>) -> Result<Self, Error> {
+        let file_name = file_path.as_ref();
+        info!("Open file {:?}", &file_name);
 
-        let res = Tag::new().read_from_path(&file_path);
+        let res = Tag::new().read_from_path(file_name);
         if res.is_ok() {
             let tag = res.unwrap();
             Ok(AudioTagWrapper {
@@ -30,12 +29,16 @@ impl AudioTagWrapper<'_> {
                 tag,
             })
         } else {
-            Err(anyhow!("No available tags for {} (error: {:?})", &file_name, res.err()))
+            Err(anyhow!("No available tags for {:?} (error: {:?})", &file_name, res.err()))
         }
     }
 }
 
 impl ReadTag for AudioTagWrapper<'_> {
+    fn get_path(&self) -> &Path {
+        self.file_name
+    }
+
     fn get_text_tag(&self, key: &MyTag) -> Option<String> {
         if key.is_text() || key.is_date() {
             let t = &self.tag;
@@ -49,11 +52,11 @@ impl ReadTag for AudioTagWrapper<'_> {
                 MyTag::AlbumArtist => t.album_artist(),
                 MyTag::Composer => t.composer(),
                 MyTag::Copyright => {
-                    warn!("Not supported tag: {} in file {}", key, self.file_name);
+                    warn!("Not supported tag: {} in file {:?}", key, &self.file_name);
                     None
                 }
                 MyTag::Date => {
-                    warn!("Not supported tag: {} in file {}", key, self.file_name);
+                    warn!("Not supported tag: {} in file {:?}", key, &self.file_name);
                     None
                 }
                 _ => None,
@@ -119,9 +122,9 @@ impl ReadTag for AudioTagWrapper<'_> {
 impl WriteTagFile for AudioTagWrapper<'_> {
     fn save(&mut self) -> Result<(), Error> {
         let tag = &mut self.tag;
-        tag.write_to_path(&self.file_name)
-            .map(|_| info!("Save file {} ok.", self.file_name))
-            .map_err(|e| anyhow!("Save file {} FAILED! (error: {})", self.file_name, e))
+        tag.write_to_path(&self.file_name.to_string_lossy())
+            .map(|_| info!("Save file {:?} ok.", &self.file_name))
+            .map_err(|e| anyhow!("Save file {:?} FAILED! (error: {})", &self.file_name, e))
     }
 }
 
@@ -133,45 +136,45 @@ impl WriteTag for AudioTagWrapper<'_> {
                 MyTag::Title => {
                     t.remove_title();
                     t.set_title(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Artist => {
                     t.remove_artist();
                     t.set_artist(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::AlbumTitle => {
                     t.remove_album_title();
                     t.set_album_title(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Genre => {
                     t.remove_genre();
                     t.set_genre(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Comment => {
                     t.remove_comment();
                     t.set_comment(value.to_owned());
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::AlbumArtist => {
                     t.remove_album_artist();
                     t.set_album_artist(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Composer => {
                     t.remove_composer();
                     t.set_composer(value.to_owned());
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Copyright => {
-                    warn!("Not supported tag {} in file {}, could NOT set {}",
-                        key, self.file_name, value);
+                    warn!("Not supported tag {} in file {:?}, could NOT set {}",
+                        key, &self.file_name, value);
                 }
                 MyTag::Date => {
-                    warn!("Not supported tag {} in file {}, could NOT set {}",
-                        key, self.file_name, value);
+                    warn!("Not supported tag {} in file {:?}, could NOT set {}",
+                        key, &self.file_name, value);
                 }
                 _ => (),
             }
@@ -185,31 +188,31 @@ impl WriteTag for AudioTagWrapper<'_> {
                 MyTag::Year => {
                     if value <= MAX_NUMBER {
                         t.set_year(value as i32);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::TrackNumber => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_track_number(value as u16);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::TrackTotal => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_total_tracks(value as u16);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::DiscNumber => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_disc_number(value as u16);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::DiscTotal => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_total_discs(value as u16);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                     }
                 }
                 _ => (),

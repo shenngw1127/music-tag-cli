@@ -1,43 +1,46 @@
 use anyhow::{anyhow, Error};
 use log::info;
 use taglib::{File as TagLibFile, FileType as TagLibFileType};
-use std::borrow::Cow;
 use std::path::Path;
 
 use crate::model::MyTag;
 use crate::op::{MAX_NUMBER, MIN_NATURAL_NUMBER};
 use super::{ReadTag, ReadWriteTag, WriteTag, WriteTagFile};
 
-pub struct TaglibWrapper<'c> {
-    file_name: Cow<'c, str>,
+pub struct TaglibWrapper<'a> {
+    file_name: &'a Path,
     file: TagLibFile,
 }
 
-impl TaglibWrapper<'_> {
-    pub fn new(file_path: &Path) -> Result<TaglibWrapper, Error> {
-        let file_name = file_path.to_string_lossy();
-        info!("Open file {}", &file_name);
-        let res = TagLibFile::new(file_path);
+impl<'a> TaglibWrapper<'a> {
+    pub fn new(file_path: &'a dyn AsRef<Path>) -> Result<Self, Error> {
+        let file_name = file_path.as_ref();
+        info!("Open file {:?}", &file_name);
+
+        let res = TagLibFile::new(&file_name);
         if res.is_ok() {
             let file = res.unwrap();
             if file.tag().is_ok() {
-                let wrapper = TaglibWrapper {
+                Ok(TaglibWrapper {
                     file_name,
                     file,
-                };
-                Ok(wrapper)
+                })
             } else {
-                Err(anyhow!("No available tags for {} (error: {:?})",
+                Err(anyhow!("No available tags for {:?} (error: {:?})",
                     &file_name,
                     file.tag().err().unwrap()))
             }
         } else {
-            Err(anyhow!("Invalid file {} (error: {:?})", &file_name, res.err()))
+            Err(anyhow!("Invalid file {:?} (error: {:?})", &file_name, res.err()))
         }
     }
 }
 
 impl ReadTag for TaglibWrapper<'_> {
+    fn get_path(&self) -> &Path {
+        self.file_name
+    }
+
     fn get_text_tag(&self, key: &MyTag) -> Option<String> {
         if key.is_text() || key.is_date() {
             let t = &self.file.tag().unwrap();
@@ -85,7 +88,7 @@ impl ReadTag for TaglibWrapper<'_> {
         if key.is_numeric() {
             let t = &self.file.tag().unwrap();
             let result = match key {
-                MyTag::Year => t.year().map(|t|t.to_string()),
+                MyTag::Year => t.year().map(|t| t.to_string()),
                 MyTag::TrackNumber => t.track_number_string(),
 
                 MyTag::TrackTotal => t.track_total_string(),
@@ -112,12 +115,12 @@ impl ReadTag for TaglibWrapper<'_> {
 impl WriteTagFile for TaglibWrapper<'_> {
     fn save(&mut self) -> Result<(), Error> {
         if self.file.save() {
-            info!("Save file {} ok.", self.file_name);
+            info!("Save file {:?} ok.", &self.file_name);
             Ok(())
         } else {
-            Err(anyhow!("Save file {} FAILED! \
+            Err(anyhow!("Save file {:?} FAILED! \
             Please check if file exists and it's attribute is NOT \"Read-only\".",
-                     self.file_name))
+                     &self.file_name))
         }
     }
 }
@@ -130,27 +133,27 @@ impl WriteTag for TaglibWrapper<'_> {
                 let completed = match key {
                     MyTag::Title => {
                         t.set_title(value);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::Artist => {
                         t.set_artist(value);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::AlbumTitle => {
                         t.set_album(value);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::Genre => {
                         t.set_genre(value);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::Comment => {
                         t.set_comment(value);
-                        info!("file {} set {}: {}", self.file_name, key, value);
+                        info!("file {:?} set {}: {}", &self.file_name, key, value);
                         true
                     }
                     _ => false,
@@ -164,20 +167,20 @@ impl WriteTag for TaglibWrapper<'_> {
             match key {
                 MyTag::AlbumArtist => {
                     self.file.set_album_artist(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Composer => {
                     self.file.set_composer(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Copyright => {
                     self.file.set_copyright(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
 
                 MyTag::Date => {
                     self.file.set_date(value);
-                    info!("file {} set {}: {}", self.file_name, key, value);
+                    info!("file {:?} set {}: {}", &self.file_name, key, value);
                 }
                 _ => (),
             }
@@ -192,7 +195,7 @@ impl WriteTag for TaglibWrapper<'_> {
                     MyTag::Year => {
                         if value <= MAX_NUMBER {
                             t.set_year(value);
-                            info!("file {} set {}: {}", self.file_name, key, value);
+                            info!("file {:?} set {}: {}", &self.file_name, key, value);
                             true
                         } else {
                             false
@@ -209,22 +212,22 @@ impl WriteTag for TaglibWrapper<'_> {
                 match key {
                     MyTag::TrackNumber => {
                         self.file.set_track_number(value, padding);
-                        info!("file {} set {}: {} with padding {}", self.file_name,
+                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     MyTag::TrackTotal => {
                         self.file.set_track_total(value, padding);
-                        info!("file {} set {}: {} with padding {}", self.file_name,
+                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     MyTag::DiscNumber => {
                         self.file.set_disc_number(value, padding);
-                        info!("file {} set {}: {} with padding {}", self.file_name,
+                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     MyTag::DiscTotal => {
                         self.file.set_disc_total(value, padding);
-                        info!("file {} set {}: {} with padding {}", self.file_name,
+                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     _ => (),

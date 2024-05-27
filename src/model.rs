@@ -2,6 +2,9 @@ use anyhow::{anyhow, Error};
 use clap::ValueEnum;
 use lazy_static::lazy_static;
 use strum_macros::{Display as EnumDisplay};
+use crate::util::numeric::decimal_to_padding_string;
+
+pub const DEFAULT_PADDING: usize = 2;
 
 enum MyTagType {
     // Text tag
@@ -77,7 +80,7 @@ impl MyTag {
     pub fn from_str(input: &str) -> Result<&'static Self, Error> {
         for tag in ALL_TAGS.iter() {
             if format!("{}", tag).eq(input) {
-                return Ok(tag)
+                return Ok(tag);
             }
         }
         Err(anyhow!("unknown tag: {}", input))
@@ -109,10 +112,13 @@ lazy_static! {
                                 .filter(|e| e.is_numeric())
                                 .copied()
                                 .collect::<Vec<MyTag>>();
+
     static ref DATE_TAGS: Vec<MyTag> = ALL_TAGS.iter()
                                 .filter(|e| e.is_date())
                                 .copied()
                                 .collect::<Vec<MyTag>>();
+
+    pub static ref EMPTY_TAGS: Vec<MyTag> = vec![];
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -161,6 +167,56 @@ pub(crate) enum QueryResultPosition {
     Last,
     Beginning,
     End,
+}
+
+#[derive(Debug, Clone)]
+pub enum ConstValue {
+    Text {
+        value: String,
+    },
+    Num {
+        value: u32,
+        padding: usize,
+    },
+    Date {
+        value: String,
+        format: String,
+    },
+}
+
+impl ConstValue {
+    pub fn get_text_value(&self) -> String {
+        match self {
+            ConstValue::Text { value } => value.clone(),
+            ConstValue::Date { value, .. } => value.clone(),
+            ConstValue::Num { value, padding } => {
+                decimal_to_padding_string(*value, *padding)
+            }
+        }
+    }
+}
+
+pub enum TextConst {
+    Add {
+        add_direction: AddDirection,
+        offset: usize,
+        addend: String,
+    },
+    Replace {
+        from: String,
+        ignore_case: bool,
+        position: QueryResultPosition,
+        to: String,
+    },
+    Remove {
+        direction: Direction,
+        beginning_offset: usize,
+        end_offset: Option<usize>,
+    },
+    Truncate {
+        direction: Direction,
+        limit: usize,
+    },
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]

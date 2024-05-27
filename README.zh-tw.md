@@ -31,16 +31,22 @@
 
 ### 子命令
 
-- view            檢視標籤
-- set-const       設定標籤為固定值
-- set-seq         設定標籤為序列值
-- mod-num         加/減方式修改數字標籤
-- mod-text-const  修改文字標籤，包括增加（add）/替換（replace）/刪除（remove）一個固定值，也可以執行截斷（truncate）
-- mod-text-regex  以正則表示式替換的方式修改文字標籤
-- conv-en         轉換英文文字標籤，轉小寫（lowercase）、大寫（uppercase）或者首字母大寫（titlecase）
-- conv-zh         轉換中文文字標籤，繁簡轉換
-- conv-utf8       轉換文字標籤為UTF-8編碼
-- help            幫助
+| 子命令         | 说明                                                                                               |
+|----------------|----------------------------------------------------------------------------------------------------|
+| view           | 檢視標籤                                                                                           |
+| conv-en        | 轉換英文文字標籤，轉小寫（lowercase）、大寫（uppercase）或者首字母大寫（titlecase）                |
+| conv-utf8      | 轉換文字標籤為UTF-8編碼                                                                            |
+| conv-zh        | 轉換中文文字標籤，繁簡轉換                                                                         |
+| exp            | 將標籤匯出到檔案                                                                                   |
+| imp            | 從檔案匯入標籤                                                                                     |
+| mod-num        | 加/減方式修改數字標籤                                                                              |
+| mod-text-const | 修改文字標籤，包括增加（add）/替換（replace）/刪除（remove）一個固定值，也可以執行截斷（truncate） |
+| mod-text-regex | 以正規表示式替換的方式修改文字標籤                                                                 |
+| set-const      | 設定標籤為固定值                                                                                   |
+| set-name       | 從檔名設定標籤                                                                                     |
+| set-seq        | 設定標籤為序列值                                                                                   |
+| ren            | 用標籤值重新命名檔案                                                                               |
+| help           | 幫助                                                                                               |
 
 ### 示例
 
@@ -48,18 +54,18 @@
 
 - 通用選項
 
-  以下選項適用於全部修改/設定/轉換標籤的命令。
+  以下選項適用於全部修改/設定/轉換標籤的命令。即只有`exp`、`view`命令**不能**使用。
 
   ```shell
       --dry-run                    如果設定為true，只顯示如何修改標籤，並不真正執行寫操作。並且資訊會記錄在日誌檔案中。這對於批次修改前的驗證，非常有用！
   -q, --quiet                      如果設定為true，只在控制檯顯示錯誤資訊
   ```
 
-  以下選項可以用於除`set-seq`之外的全部命令。
+  以下選項可以用於**除**`imp`、`set-seq`之外的全部命令。
 
   ```shell
       --where <WHERE_CLAUSE>
-          `Where`子句用於謂詞判定。這與SQL了類似，支援`NOT` `AND` `OR`邏輯運算子和`=` `<` `<=` `>` `>=` `!=` `<>`比較運算子，也可以使用`LIKE`，它支援`%` `_`萬用字元，`ILIKE`與之類似，但它是忽略大小寫的。注意在字串中的單引號`'`字元需要使用轉義，即`''`，和SQL字串類似。
+          `Where`子句用於謂詞判定。這與SQL了類似，支援`NOT` `AND` `OR`邏輯運算子和`=` `<` `<=` `>` `>=` `!=` `<>`比較運算子，也可以使用`LIKE`，它支援`%` `_`萬用字元，`ILIKE`與之類似，但它是忽略大小寫的。注意在字串中的單引號即`'`字元需要使用跳脫字元表示，即`''`，和SQL字串類似。
   ```
   
   注意：`=` `!=` `<>`用於文字標籤時是大小寫敏感的。
@@ -86,36 +92,74 @@
   music-tag-cli view -t title,artist,album-artist "~/Music/Music/John Denver"
   ```
 
-- set-const
+- conv-en
 
-   設定標籤為固定值， 如需更多資訊，請輸入 `music-tag-cli set-const -h`
-
-  ```shell
-  # 為指定的文字標籤設定固定值
-  music-tag-cli set-const -t artist,album-artist "~/Music/Music/John Denver" text "John Denver"
-
-  # 為指定的數字標籤設定固定值
-  music-tag-cli set-const -t track-total "~/Music/Music/John Denver" num 10
-  music-tag-cli set-const -t disc-number,disc-total "~/Music/Music/John Denver" num 1 --padding 1
-  ```
-
-- set-seq
-
-  設定標籤為序列值，順序根據檔名排序（對於每個資料夾，序列值會重置）。部分引數：
-
-  - start: 開始值，預設1
-  - step:  增量值，預設1
-  - padding: 格式佔位數，預設2
+  轉換英文文字標籤，轉小寫（lowercase）、大寫（uppercase）或者首字母大寫（titlecase）。
 
   ```shell
-  # 設定曲目編號為序列值
-  music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
-
-  # 對現有標題追加序列值
-  music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
+  # 把標題轉為首字母大寫
+  music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+  
+  # 把註釋轉為小寫
+  music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
+  
+  # 把版權轉為大寫
+  music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
   ```
 
-  如需更多資訊，請輸入 `music-tag-cli set-const -h`
+- conv-utf8
+
+  轉換文字標籤為UTF-8編碼
+
+  **注意**：請小心使用此功能，最好先檢查使用`--dry-run`的結果是否正確，因為有些轉換是**不可逆**的。
+
+  ```shell
+  # 把全部文字標籤從 Windows-1252 轉為 UTF-8
+  music-tag-cli conv-utf8 -e Windows-1252 "~/Music/Music/old mp3"
+
+  # 把全部文字標籤從 Shift_JIS 轉為 UTF-8
+  music-tag-cli conv-utf8 -e shift_jis "~/Music/Music/日本語"
+  ```
+
+- conv-zh
+
+  中文文字標籤繁簡轉換，如果要了解更多規則，請看[這裡](https://github.com/BYVoid/OpenCC)。
+
+  ```shell
+  # 把全部中文文字標籤轉為簡體
+  music-tag-cli conv-zh -p t2s "~/Music/Music"
+  
+  # 把全部中文文字標籤轉為繁體
+  music-tag-cli conv-zh -p s2t "~/Music/Music"
+  ```
+
+- exp
+
+  將標籤匯出到JSON檔案。
+  
+  如果輸出檔案已經存在，程式將退出。
+
+  ```shell
+  # 簡單轉儲
+  music-tag-cli exp -o "../backup/all.json" "~/Music/Music"
+
+  # 轉儲，包括屬性資訊
+  music-tag-cli exp -o "~/Music/Music" --with-properties "../backup/all.json"
+  ```
+
+- imp
+
+  從JSON檔案匯入標籤。（不會匯入`props`即屬性資訊。）
+  
+  如果沒有設定`--dry-run`選項，當首次發現JSON元素異常時，程式會中斷，但是之前的元素會儲存成功。
+
+  ```shell
+  # 簡單匯入
+  music-tag-cli imp "../backup/all.json"
+
+  # 匯入，檔案路徑`path`會拼接到`~/Music/Music`之後
+  music-tag-cli imp -b "~/Music/Music" "../backup/all.json"
+  ```
 
 - mod-num
   
@@ -163,51 +207,73 @@
 
 - mod-text-regex
 
-  以正則表示式替換的方式修改文字標籤，支援組的捕獲和全域性的大小寫敏感/不敏感方式。
+  以正規表示式替換的方式修改文字標籤，支援組的捕獲和全域性的大小寫敏感/不敏感方式。
+
+  注意：**不**支援正向、反向預查！
 
   ```shell
-  music-tag-cli mod-text-regex -i --from "^(From)\s+" "something ${1}, " "~/Music/Music/dir2"
+  # Windows CMD
+  music-tag-cli mod-text-regex -t comment "~/Music/Music/dir2" -i --from "^(From)\s+" --to "something ${1}, "
+
+  # Linux/Mac, `$`需要加入跳脫字元即`\$`
+  music-tag-cli mod-text-regex -t comment "~/Music/Music/dir2" -i --from "^(From)\s+" --to "something \${1}, "
   ```
 
-- conv-en
+- set-const
 
-  轉換英文文字標籤，轉小寫（lowercase）、大寫（uppercase）或者首字母大寫（titlecase）。
+   設定標籤為固定值， 如需更多資訊，請輸入 `music-tag-cli set-const -h`
 
   ```shell
-  # 把標題轉為首字母大寫
-  music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
-  
-  # 把註釋轉為小寫
-  music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
-  
-  # 把版權轉為大寫
-  music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
+  # 為指定的文字標籤設定固定值
+  music-tag-cli set-const -t artist,album-artist "~/Music/Music/John Denver" text "John Denver"
+
+  # 為指定的數字標籤設定固定值
+  music-tag-cli set-const -t track-total "~/Music/Music/John Denver" num 10
+  music-tag-cli set-const -t disc-number,disc-total "~/Music/Music/John Denver" num 1 --padding 1
   ```
 
-- conv-zh
+- set-name
 
-  中文文字標籤繁簡轉換，如果要了解更多規則，請看[這裡](https://github.com/BYVoid/OpenCC)。
+  從檔名設定標籤（只使用檔名主幹，不包含路徑和副檔名）
 
   ```shell
-  # 把全部中文文字標籤轉為簡體
-  music-tag-cli conv-zh -p t2s "~/Music/Music"
-  
-  # 把全部中文文字標籤轉為繁體
-  music-tag-cli conv-zh -p s2t "~/Music/Music"
+  # Windows CMD
+  music-tag-cli set-name --template "${track-number} - ${title} - ${artist}" "C:\Music\Music\dir"
+
+  # Linux/Mac, `$`需要加入跳脫字元即`\$`
+  music-tag-cli set-name --template "\${track-number} - \${title} - \${artist}" "~/Music/Music/John Denver"
   ```
 
-- conv-utf8
+- set-seq
 
-  轉換文字標籤為UTF-8編碼
+  設定標籤為序列值，順序根據檔名排序（對於每個資料夾，序列值會重置）。部分引數：
 
-  **注意**：請小心使用此功能，最好先檢查使用`--dry-run`的結果是否正確，因為有些轉換是**不可逆**的。
+  - start: 開始值，預設1
+  - step:  增量值，預設1
+  - padding: 格式佔位數，預設2
 
   ```shell
-  # 把全部文字標籤從 Windows-1252 轉為 UTF-8
-  music-tag-cli conv-utf8 -e Windows-1252 "~/Music/Music/old mp3"
+  # 設定曲目編號為序列值
+  music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
 
-  # 把全部文字標籤從 Shift_JIS 轉為 UTF-8
-  music-tag-cli conv-utf8 -e shift_jis "~/Music/Music/日本語"
+  # 對現有標題追加序列值
+  music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
+  ```
+
+  如需更多資訊，請輸入 `music-tag-cli set-const -h`
+
+- ren
+  
+  使用標籤值重新命名檔案（只修改檔名主幹，路徑和副檔名保持不變）
+
+  如果標籤值為空，會使用空字串代替。如果全部為空字串，不會執行重新命名。
+
+  ```shell
+  # Windows CMD
+  music-tag-cli ren --template "${track-number}.${title} - ${artist}" "C:\Music\Music\dir"
+
+  # Linux/Mac, `$`需要加入跳脫字元即`\$`
+  music-tag-cli ren --template "\${track-number}.\${title} - \${artist}" "~/Music/Music/John Denver"
   ```
 
 ### 清除文字標籤

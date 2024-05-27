@@ -1,102 +1,93 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::Error;
 use log::warn;
-use std::path::Path;
 
-use crate::model::{CalcMethod, MyTag};
-use crate::op::{check_tags_not_empty, Action, MAX_NUMBER, WalkAction, WriteAction, WriteNumAction, get_where};
-use crate::op::tag_impl::TagImpl;
+use crate::model::{CalcMethod, EMPTY_TAGS, MyTag};
+use crate::op::{get_file_iterator, get_tags_from_args, get_where, MAX_NUMBER};
+use crate::op::{Action, WalkAction, WriteAction, WriteNumAction};
+use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
-pub struct ModNumAction<'a> {
-    dir: &'a Path,
+pub struct ModNumAction {
+    it: Box<dyn Iterator<Item=PathBuf>>,
     dry_run: bool,
-    tags: &'a Vec<MyTag>,
+    tags: Vec<MyTag>,
     where_clause: Option<WhereClause>,
-    calc_method: &'a CalcMethod,
-    operand: &'a u32,
-    padding: &'a usize,
+    calc_method: CalcMethod,
+    operand: u32,
+    padding: usize,
 }
 
-impl<'a> ModNumAction<'a> {
-    pub fn new(dir: &'a Path,
-               dry_run: bool,
-               tags: &'a Vec<MyTag>,
-               where_string: &Option<String>,
-               calc_method: &'a CalcMethod,
-               operand: &'a u32,
-               padding: &'a usize) -> Result<Self, Error> {
+impl ModNumAction {
+    pub fn new<P>(dir: P,
+                  dry_run: bool,
+                  tags: &[MyTag],
+                  where_string: &Option<String>,
+                  calc_method: &CalcMethod,
+                  operand: u32,
+                  padding: usize) -> Result<Self, Error>
+        where P: AsRef<Path>
+    {
+        let it = get_file_iterator(dir.as_ref())?;
         let where_clause = get_where(where_string)?;
-        Self::check(tags)
-            .map(|_| {
-                ModNumAction {
-                    dir,
-                    dry_run,
-                    tags,
-                    where_clause,
-                    calc_method,
-                    operand,
-                    padding,
-                }
-            })
-    }
-
-    fn check(tags: &Vec<MyTag>) -> Result<(), Error> {
-        check_tags_not_empty(tags)
+        let tags = get_tags_from_args(tags, &EMPTY_TAGS)?;
+        Ok(Self {
+            it,
+            dry_run,
+            tags,
+            where_clause,
+            calc_method: calc_method.clone(),
+            operand,
+            padding,
+        })
     }
 }
 
-impl Action for ModNumAction<'_> {
-    fn do_dir(&self) -> Result<(), Error> {
-        self.do_dir_walk()
-    }
-
-    fn do_file(&self) -> Result<(), Error> {
-        self.do_file_impl()
-    }
-
-    fn op_name(&self) -> &'static str {
-        "conv-en"
-    }
-
-    fn get_path(&self) -> &Path {
-        self.dir
-    }
-
-    fn get_tags(&self) -> &Vec<MyTag> {
-        self.tags
+impl Action for ModNumAction {
+    fn do_any(&mut self) -> Result<(), Error> {
+        self.do_all()
     }
 }
 
-impl WalkAction for ModNumAction<'_> {
-    fn do_one_file(&self, path: &Path) -> Result<(), Error> {
+impl WalkAction for ModNumAction {
+    fn get_iterator(&mut self) -> &mut dyn Iterator<Item=PathBuf> {
+        &mut self.it
+    }
+
+    fn do_one_file(&mut self, path: &Path) -> Result<bool, Error> {
         self.do_one_file_write(path)
-    }
-}
-
-impl WriteAction for ModNumAction<'_> {
-    fn is_dry_run(&self) -> bool {
-        self.dry_run
-    }
-
-    fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
-        self.set_tags_some_impl(t)
     }
 
     fn get_where(&self) -> &Option<WhereClause> {
         &self.where_clause
     }
+
+    fn get_tags(&self) -> &Vec<MyTag> {
+        &self.tags
+    }
 }
 
-impl WriteNumAction for ModNumAction<'_> {
-    fn get_padding(&self) -> &usize {
+impl WriteAction for ModNumAction {
+    fn is_dry_run(&self) -> bool {
+        self.dry_run
+    }
+
+    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.set_tags_some_impl(t)
+    }
+}
+
+impl WriteNumAction for ModNumAction {
+    fn get_padding(&self) -> usize {
         self.padding
     }
 
     fn get_new_numeric(&self, current: &Option<u32>) -> Option<u32> {
         if let Some(curr) = current {
-            let new_v = match self.calc_method {
-                CalcMethod::Increase => *curr + *self.operand,
-                CalcMethod::Decrease => *curr - *self.operand,
+            let new_v = match &self.calc_method {
+                CalcMethod::Increase => *curr + self.operand,
+                CalcMethod::Decrease => *curr - self.operand,
             };
             if new_v < MAX_NUMBER {
                 Some(new_v)

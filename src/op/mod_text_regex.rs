@@ -1,101 +1,86 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{anyhow, Error};
+use log::debug;
 use regex::{Regex, RegexBuilder};
-use std::borrow::Cow;
-use std::path::Path;
 
 use crate::model::{MyTag, TEXT_TAGS};
-use crate::op::tag_impl::TagImpl;
-use crate::op::{Action, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
-pub struct ModTextRegexAction<'a> {
-    dir: &'a Path,
+pub struct ModTextRegexAction {
+    it: Box<dyn Iterator<Item=PathBuf>>,
     dry_run: bool,
-    tags: &'a Vec<MyTag>,
+    tags: Vec<MyTag>,
     where_clause: Option<WhereClause>,
     re: Regex,
-    to: &'a str,
+    to: String,
 }
 
-impl<'a> ModTextRegexAction<'a> {
-    pub fn new(dir: &'a Path,
-               dry_run: bool,
-               tags: &'a Vec<MyTag>,
-               where_string: &Option<String>,
-               from: &'a str,
-               ignore_case: &'a bool,
-               to: &'a str) -> Result<Self, Error> {
-        let re = Self::get_regex(from, ignore_case)?;
+impl ModTextRegexAction {
+    pub fn new<P>(dir: P,
+                  dry_run: bool,
+                  tags: &[MyTag],
+                  where_string: &Option<String>,
+                  from: &str,
+                  ignore_case: bool,
+                  to: &str) -> Result<Self, Error>
+        where P: AsRef<Path>
+    {
+        let re = get_regex(from, ignore_case)?;
+        let it = get_file_iterator(dir.as_ref())?;
+        let tags = get_tags_from_args(tags, &TEXT_TAGS)?;
         let where_clause = get_where(where_string)?;
-        Ok(ModTextRegexAction {
-            dir,
+        Ok(Self {
+            it,
             dry_run,
-            tags: if !tags.is_empty() {
-                tags
-            } else {
-                &TEXT_TAGS
-            },
+            tags,
             where_clause,
             re,
-            to,
+            to: to.to_owned(),
         })
     }
+}
 
-    fn get_regex(from: &str, ignore_case: &bool) -> Result<Regex, Error> {
-        RegexBuilder::new(from)
-            .case_insensitive(*ignore_case)
-            .unicode(true)
-            .build()
-            .map_err(|e| { anyhow!(e) })
+impl Action for ModTextRegexAction {
+    fn do_any(&mut self) -> Result<(), Error> {
+        self.do_all()
     }
 }
 
-impl Action for ModTextRegexAction<'_> {
-    fn do_dir(&self) -> Result<(), Error> {
-        self.do_dir_walk()
+impl WalkAction for ModTextRegexAction {
+    fn get_iterator(&mut self) -> &mut dyn Iterator<Item=PathBuf> {
+        &mut self.it
     }
 
-    fn do_file(&self) -> Result<(), Error> {
-        self.do_file_impl()
-    }
-
-    fn op_name(&self) -> &'static str {
-        "mod-text-regex"
-    }
-
-    fn get_path(&self) -> &Path {
-        self.dir
-    }
-
-    fn get_tags(&self) -> &Vec<MyTag> {
-        self.tags
-    }
-}
-
-impl WalkAction for ModTextRegexAction<'_> {
-    fn do_one_file(&self, path: &Path) -> Result<(), Error> {
+    fn do_one_file(&mut self, path: &Path) -> Result<bool, Error> {
         self.do_one_file_write(path)
-    }
-}
-
-impl WriteAction for ModTextRegexAction<'_> {
-    fn is_dry_run(&self) -> bool {
-        self.dry_run
-    }
-
-    fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
-        self.set_tags_some_impl(t)
     }
 
     fn get_where(&self) -> &Option<WhereClause> {
         &self.where_clause
     }
+
+    fn get_tags(&self) -> &Vec<MyTag> {
+        &self.tags
+    }
 }
 
-impl WriteTextAction for ModTextRegexAction<'_> {
+impl WriteAction for ModTextRegexAction {
+    fn is_dry_run(&self) -> bool {
+        self.dry_run
+    }
+
+    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.set_tags_some_impl(t)
+    }
+}
+
+impl WriteTextAction for ModTextRegexAction {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
-            let new_v = get_value_re(curr, &self.re, self.to);
+            let new_v = (&self.re).replace_all(curr, &self.to);
             if !new_v.eq(curr) {
                 Some(new_v.to_string())
             } else {
@@ -107,6 +92,38 @@ impl WriteTextAction for ModTextRegexAction<'_> {
     }
 }
 
-fn get_value_re<'a, 'b>(original: &'b str, re: &'a Regex, to: &'a str) -> Cow<'b, str> {
-    re.replace(original, to)
+fn get_regex(from: &str, ignore_case: bool) -> Result<Regex, Error> {
+    debug!("from: {}", from);
+    RegexBuilder::new(from)
+        .case_insensitive(ignore_case)
+        .unicode(true)
+        .build()
+        .map_err(|e| { anyhow!(e) })
+}
+
+#[cfg(test)]
+mod test {
+    use super::get_regex;
+
+    #[test]
+    fn test_get_value_re() {
+        let re = &get_regex(r"[A-Za-z]", false).unwrap();
+        assert_eq!(re.replace_all("Hello World!", "x"), "xxxxx xxxxx!");
+
+        let re = &get_regex("Hello", true).unwrap();
+        assert_eq!(re.replace_all("Hello World hello!", "x"), "x World x!");
+
+        let re = &get_regex(r"久石譲", false).unwrap();
+        assert_eq!(re.replace_all("久石譲", "久石 譲"), "久石 譲");
+        assert_eq!(
+            re.replace_all("久石譲; 久石譲; New Japan Philharmonic Orchestra",
+                           "久石 譲"),
+            "久石 譲; 久石 譲; New Japan Philharmonic Orchestra");
+
+        let re = &get_regex("\\s*([^;]*);", false).unwrap();
+        assert_eq!(
+            re.replace_all("久石譲; 久石譲; New Japan Philharmonic Orchestra",
+                           ";${1}"),
+            ";久石譲;久石譲 New Japan Philharmonic Orchestra");
+    }
 }

@@ -1,87 +1,81 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::Error;
-use std::path::Path;
 use titlecase::titlecase;
 
 use crate::model::{ConvEnProfile, MyTag, TEXT_TAGS};
-use crate::op::{Action, get_where, string_to_option, WalkAction, WriteAction, WriteTextAction};
-use crate::op::tag_impl::TagImpl;
+use crate::op::{get_file_iterator, get_tags_from_args, get_where, string_to_option};
+use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
-pub struct ConvEnAction<'a> {
-    dir: &'a Path,
+pub struct ConvEnAction {
+    it: Box<dyn Iterator<Item=PathBuf>>,
     dry_run: bool,
-    tags: &'a Vec<MyTag>,
+    tags: Vec<MyTag>,
     where_clause: Option<WhereClause>,
-    profile: &'a ConvEnProfile,
+    profile: ConvEnProfile,
 }
 
-impl<'a> ConvEnAction<'a> {
-    pub fn new(dir: &'a Path,
-               dry_run: bool,
-               tags: &'a Vec<MyTag>,
-               where_string: &Option<String>,
-               profile: &'a ConvEnProfile) -> Result<Self, Error> {
+impl ConvEnAction {
+    pub fn new<P>(dir: P,
+                  dry_run: bool,
+                  tags: &[MyTag],
+                  where_string: &Option<String>,
+                  profile: &ConvEnProfile) -> Result<Self, Error>
+        where P: AsRef<Path>
+    {
+        let it = get_file_iterator(dir.as_ref())?;
+        let tags = get_tags_from_args(tags, &TEXT_TAGS)?;
         let where_clause = get_where(where_string)?;
-        Ok(ConvEnAction {
-            dir,
+        Ok(Self {
+            it,
             dry_run,
-            tags: if !tags.is_empty() {
-                tags
-            } else {
-                &TEXT_TAGS
-            },
+            tags,
             where_clause,
-            profile,
+            profile: profile.clone(),
         })
     }
 }
 
-impl Action for ConvEnAction<'_> {
-    fn do_dir(&self) -> Result<(), Error> {
-        self.do_dir_walk()
-    }
-
-    fn do_file(&self) -> Result<(), Error> {
-        self.do_file_impl()
-    }
-
-    fn op_name(&self) -> &'static str {
-        "conv-en"
-    }
-
-    fn get_path(&self) -> &Path {
-        self.dir
-    }
-
-    fn get_tags(&self) -> &Vec<MyTag> {
-        self.tags
+impl Action for ConvEnAction {
+    fn do_any(&mut self) -> Result<(), Error> {
+        self.do_all()
     }
 }
 
-impl WalkAction for ConvEnAction<'_> {
-    fn do_one_file(&self, path: &Path) -> Result<(), Error> {
+impl WalkAction for ConvEnAction {
+    fn get_iterator(&mut self) -> &mut dyn Iterator<Item=PathBuf> {
+        &mut self.it
+    }
+
+    fn do_one_file(&mut self, path: &Path) -> Result<bool, Error> {
         self.do_one_file_write(path)
-    }
-}
-
-impl WriteAction for ConvEnAction<'_> {
-    fn is_dry_run(&self) -> bool {
-        self.dry_run
-    }
-
-    fn set_tags_some(&self, t: &mut TagImpl) -> Result<(), Error> {
-        self.set_tags_some_impl(t)
     }
 
     fn get_where(&self) -> &Option<WhereClause> {
         &self.where_clause
     }
+
+    fn get_tags(&self) -> &Vec<MyTag> {
+        &self.tags
+    }
 }
 
-impl WriteTextAction for ConvEnAction<'_> {
+impl WriteAction for ConvEnAction {
+    fn is_dry_run(&self) -> bool {
+        self.dry_run
+    }
+
+    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.set_tags_some_impl(t)
+    }
+}
+
+impl WriteTextAction for ConvEnAction {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
-            let new_v = match self.profile {
+            let new_v = match &self.profile {
                 ConvEnProfile::Lowercase => curr.to_lowercase(),
                 ConvEnProfile::Uppercase => curr.to_uppercase(),
                 ConvEnProfile::Titlecase => titlecase(curr),
