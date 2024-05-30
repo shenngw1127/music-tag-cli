@@ -149,7 +149,7 @@ impl WriteTag for TagImpl<'_> {
                 TagImplRaw::AudioTag(inner) => inner.write_text_tag(key, value),
             }
         } else {
-            info!("file {:?} set {}: {}", self.get_path(), key, value);
+            info!("file {:?} set tag {}: {}", self.get_path(), key, value);
         }
     }
 
@@ -163,10 +163,21 @@ impl WriteTag for TagImpl<'_> {
             let path = self.get_path();
             match &self.raw {
                 TagImplRaw::Taglib(_) =>
-                    info!("file {:?} set {}: {} with padding {}", path, key, value, padding),
+                    info!("file {:?} set tag {}: {} with padding {}", path, key, value, padding),
                 TagImplRaw::AudioTag(_) =>
-                    info!("file {:?} set {}: {}", path, key, value),
+                    info!("file {:?} set tag {}: {}", path, key, value),
             }
+        }
+    }
+
+    fn clear_tag(&mut self, key: &MyTag) {
+        if !self.dry_run {
+            match &mut self.raw {
+                TagImplRaw::Taglib(t) => t.clear_tag(key),
+                TagImplRaw::AudioTag(t) => t.clear_tag(key),
+            }
+        } else {
+            info!("file {:?} remove tag {}", self.get_path(), key);
         }
     }
 }
@@ -195,6 +206,8 @@ pub trait WriteTag: WriteTagFile {
     fn write_text_tag(&mut self, key: &MyTag, value: &str);
 
     fn write_numeric_tag(&mut self, key: &MyTag, value: u32, padding: usize);
+
+    fn clear_tag(&mut self, key: &MyTag);
 }
 
 pub trait ReadWriteTag: ReadTag + WriteTag {}

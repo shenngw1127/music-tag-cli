@@ -5,7 +5,7 @@ use log::debug;
 use regex::{Regex, RegexBuilder};
 
 use crate::model::{MyTag, TEXT_TAGS};
-use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
@@ -62,7 +62,7 @@ impl WalkAction for ModTextRegexAction {
         &self.where_clause
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -72,12 +72,18 @@ impl WriteAction for ModTextRegexAction {
         self.dry_run
     }
 
-    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
-        self.set_tags_some_impl(t)
+    fn write_tags(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.write_tags_impl(t)
     }
 }
 
 impl WriteTextAction for ModTextRegexAction {
+    fn set_text_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
+        self.set_text_tag_impl(t, tag)
+    }
+}
+
+impl WriteTextForCurrentAction for ModTextRegexAction {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
             let new_v = (&self.re).replace_all(curr, &self.to);

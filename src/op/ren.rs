@@ -2,10 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Error};
-use log::info;
+use log::{error, info};
 
 use crate::model::MyTag;
-use crate::op::{get_file_iterator, get_tags_from_template, get_where};
+use crate::op::{get_file_iterator, get_tags_from_template, get_where, MyValues};
 use crate::op::{Action, ReadAction, WalkAction};
 use crate::where_clause::WhereClause;
 
@@ -62,7 +62,7 @@ impl WalkAction for RenAction {
         &self.where_clause
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -89,6 +89,7 @@ fn get_new_path<P>(path: P,
             break Some(new_path);
         } else {
             if i == u16::MAX {
+                error!("Could NOT get the new filename! old_path: {:?}, stem: {}",  old_path, stem);
                 break None;
             }
             i = i + 1;
@@ -101,11 +102,10 @@ impl ReadAction for RenAction {
         self.with_properties
     }
 
-    fn get_content(&self, path: &Path) -> Result<Option<String>, Error> {
-        let v = self.read_tags(path)?;
+    fn get_content(&self, path: &Path, v: &MyValues) -> Result<Option<String>, Error> {
         if !v.is_empty_value() {
             let mut result = self.template.clone();
-            for tag in self.get_tags() {
+            for tag in self.tags() {
                 let tag_name = &tag.to_string();
                 result = result.replace(&format!("${{{}}}", tag_name),
                                         v.get_text(tag).unwrap_or_default());
@@ -126,16 +126,17 @@ impl ReadAction for RenAction {
     fn do_output(&mut self, path: &Path, content: &str) -> Result<bool, Error> {
         if let Some(ref new_path) = get_new_path(path, &content) {
             if !self.dry_run {
-                return fs::rename(path, new_path)
-                    .map(|_| {
+                fs::rename(path, new_path).map_or_else(
+                    |e| {
+                        Err(anyhow!("Rename file {:?} to {:?} failed. (error: {:?})",
+                            path, new_path, e))
+                    },
+                    |_| {
                         info!("Rename file {:?} to {:?}", path, new_path);
-                        true
+                        Ok(true)
                     })
-                    .map_err(|e| anyhow!("Rename file {:?} to {:?} failed. (error: {:?})",
-                        path, new_path, e));
             } else {
-                info!("Rename file {:?} to {:?}", path, new_path);
-                Ok(true)
+                ren_dry_run(path, new_path)
             }
         } else {
             Ok(false)
@@ -150,4 +151,17 @@ fn get_empty_value(tags: &[MyTag], template: &str) -> String {
         result = result.replace(&format!("${{{}}}", tag_name), "");
     }
     result
+}
+
+fn ren_dry_run<P>(path: P, new_path: P) -> Result<bool, Error>
+    where P: AsRef<Path>
+{
+    let new_path = new_path.as_ref();
+    let path = path.as_ref();
+    if !new_path.exists() {
+        info!("Rename file {:?} to {:?}", path, new_path);
+        Ok(true)
+    } else {
+        Err(anyhow!("Rename file {:?} to {:?} failed! File already exists.", path, new_path))
+    }
 }

@@ -3,10 +3,10 @@ use clap::Parser;
 use flexi_logger::{Age, Cleanup, Criterion, DeferredNow, Duplicate, FileSpec, Logger, LoggerHandle, Naming, TS_DASHES_BLANK_COLONS_DOT_BLANK, WriteMode};
 use log::{debug, error, Record};
 
-use crate::args::{App, Command};
+use crate::args::{App, Command, LrcDirection};
 use crate::config::get_log_level;
 
-use crate::op::Action;
+use crate::op::{Action, ClearAction, LrcExpAction, LrcImpAction};
 use crate::op::ConvEnAction;
 use crate::op::ConvUtf8Action;
 use crate::op::ConvZhAction;
@@ -101,6 +101,16 @@ fn do_command(logger: &mut LoggerHandle) -> Result<(), Error> {
 fn get_action(logger: &mut LoggerHandle) -> Result<Box<dyn Action>, Error> {
     let app = App::parse();
     let action: Box<dyn Action> = match app.command {
+        Command::Clear(args) => {
+            debug!("args: {:?}", args);
+            if args.quiet {
+                logger.adapt_duplication_to_stdout(Duplicate::Error)?;
+            }
+            Box::new(ClearAction::new(&args.directory,
+                                       args.dry_run,
+                                       &args.tags,
+                                       &args.where_clause)?)
+        }
         Command::ConvEn(args) => {
             debug!("args: {:?}", args);
             if args.global_opts.quiet {
@@ -201,6 +211,22 @@ fn get_action(logger: &mut LoggerHandle) -> Result<Box<dyn Action>, Error> {
             Box::new(ImpAction::new(&args.source_file,
                                     &args.base_directory,
                                     args.dry_run)?)
+        }
+        Command::Lrc(args) => {
+            debug!("args: {:?}", args);
+            if args.quiet {
+                logger.adapt_duplication_to_stdout(Duplicate::Error)?;
+            }
+            match args.direction {
+                LrcDirection::Export => Box::new(LrcExpAction::new(&args.directory,
+                                                                   &args.encoding_name,
+                                                                   args.dry_run,
+                                                                   &args.where_clause)?),
+                LrcDirection::Import => Box::new(LrcImpAction::new(&args.directory,
+                                                                   &args.encoding_name,
+                                                                   args.dry_run,
+                                                                   &args.where_clause)?)
+            }
         }
         Command::SetConst(args) => {
             debug!("args: {:?}", args);

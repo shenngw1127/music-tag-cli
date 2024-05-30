@@ -24,6 +24,7 @@
 | disc-number  | 盘片编号   | 数字 |
 | disc-total   | 盘片总数   | 数字 |
 | copyright    | 版权       | 文本 |
+| lyrics       | 歌詞       | 文本 |
 
 ## 帮助
 
@@ -34,11 +35,13 @@
 | 子命令         | 说明                                                                                               |
 |----------------|----------------------------------------------------------------------------------------------------|
 | view           | 查看标签                                                                                           |
+| clear          | 清除标签的值                                                                                       |
 | conv-en        | 转换英文文本标签，转小写（lowercase）、大写（uppercase）或者首字母大写（titlecase）                |
 | conv-utf8      | 转换文本标签为UTF-8编码                                                                            |
 | conv-zh        | 转换中文文本标签，繁简转换                                                                         |
 | exp            | 把标签导出到文件                                                                                   |
 | imp            | 从文件导入标签                                                                                     |
+| lrc            | 导出歌词到到`.lrc`文件，或者从`.lrc`文件导入歌词                                                   |
 | mod-num        | 加/减方式修改数字标签                                                                              |
 | mod-text-const | 修改文本标签，包括增加（add）/替换（replace）/删除（remove）一个固定值，也可以执行截断（truncate） |
 | mod-text-regex | 以正则表达式替换的方式修改文本标签                                                                 |
@@ -52,233 +55,269 @@
 
 注意：全部示例中的文件路径都是以 **Unix/Linux/Mac** 方式表示的，如果您使用的是 **Windows** 系列操作系统，请使用Windows格式的路径代替，例如："C:\some-path"。注意全部字符必须包含在UNICODE字符集中；如果路径中存在空格，需要用`"`包裹。
 
-- 通用选项
+#### 通用选项
 
-  以下选项适用于全部修改/设置/转换标签的命令。即只有`exp`、`view`命令**不能**使用。
+以下选项适用于全部修改/设置/转换标签的命令。即只有`exp`、`view`命令**不能**使用。
 
-  ```shell
-      --dry-run                    如果设置为true，只显示如何修改标签，并不真正执行写操作。并且信息会记录在日志文件中。这对于批量修改前的验证，非常有用！
-  -q, --quiet                      如果设置为true，只在控制台显示错误信息
-  ```
+```shell
+    --dry-run                    如果设置为true，只显示如何修改标签，并不真正执行写操作。并且信息会记录在日志文件中。这对于批量修改前的验证，非常有用！
+-q, --quiet                      如果设置为true，只在控制台显示错误信息
+```
 
-  以下选项可以用于**除**`imp`、`set-seq`之外的全部命令。
+以下选项可以用于**除**`imp`、`set-seq`之外的全部命令。
 
-  ```shell
-      --where <WHERE_CLAUSE>
+```shell
+    --where <WHERE_CLAUSE>
           `Where`子句用于谓词判定。这与SQL了类似，支持`NOT` `AND` `OR`逻辑操作符和`=` `<` `<=` `>` `>=` `!=` `<>`比较操作符，也可以使用`LIKE`，它支持`%` `_`通配符，`ILIKE`与之类似，但它是忽略大小写的。注意在字符串中的单引号`'`字符需要使用转义，即`''`，和SQL字符串类似。
-  ```
+```
   
-  注意：`=` `!=` `<>`用于文本标签时是大小写敏感的。
+注意：`=` `!=` `<>`用于文本标签时是大小写敏感的。
 
-  示例
+示例
 
-  ```shell
-  # 只显示曲目编号在10～100之间的标签
-  music-tag-cli view "~/Music/Music/John Denver" --where "track-number >= 10 and track-number <= 100"
-  ```
+```shell
+# 只显示曲目编号在10～100之间的标签
+music-tag-cli view "~/Music/Music/John Denver" --where "track-number >= 10 and track-number <= 100"
+```
 
-- view
+#### view
 
-  查看标签
+查看标签
 
-  ```shell
-  # 查看文件中的全部标签
-  music-tag-cli view ~/Music/Music
+```shell
+# 查看文件中的全部标签
+music-tag-cli view ~/Music/Music
 
-  # 查看文件中的全部标签，包含属性信息
-  music-tag-cli view --with-properties "~/Music/Music/John Denver"
+# 查看文件中的全部标签，包含属性信息
+music-tag-cli view --with-properties "~/Music/Music/John Denver"
 
-  # 只查看指定的标签
-  music-tag-cli view -t title,artist,album-artist "~/Music/Music/John Denver"
-  ```
+# 只查看指定的标签
+music-tag-cli view -t title,artist,album-artist "~/Music/Music/John Denver"
+```
 
-- conv-en
+#### clear
 
-  转换英文文本标签，转小写（lowercase）、大写（uppercase）或者首字母大写（titlecase）。
+清除标签的值。
 
-  ```shell
-  # 把标题转为首字母大写
-  music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+**注意**：请小心使用此功能，最好先检查使用`--dry-run`的结果是否正确，因为清除后**不可恢复**。
 
-  # 把注释转为小写
-  music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
+```shell
+# 清除注释和版权
+music-tag-cli clear -t comment,copyright "~/Music/Music"
+```
+
+#### conv-en
+
+转换英文文本标签，转小写（lowercase）、大写（uppercase）或者首字母大写（titlecase）。
+
+```shell
+# 把标题转为首字母大写
+music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+
+# 把注释转为小写
+music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
+
+# 把版权转为大写
+music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
+```
+
+#### conv-utf8
+
+转换文本标签为UTF-8编码
   
-  # 把版权转为大写
-  music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
-  ```
+**注意**：请小心使用此功能，最好先检查使用`--dry-run`的结果是否正确，因为有些转换是**不可逆**的。
 
-- conv-utf8
+```shell
+# 把全部文本标签从 Windows-1252 转为 UTF-8
+music-tag-cli conv-utf8 -e Windows-1252 "~/Music/Music/old mp3"
 
-  转换文本标签为UTF-8编码
+# 把全部文本标签从 Shift_JIS 转为 UTF-8
+music-tag-cli conv-utf8 -e shift_jis "~/Music/Music/日本語"
+```
+
+#### conv-zh
+
+中文文本标签繁简转换，如果要了解更多规则，请看[这里](https://github.com/BYVoid/OpenCC)。
+
+```shell
+# 把全部中文文本标签转为简体
+music-tag-cli conv-zh -p t2s "~/Music/Music"
+
+# 把全部中文文本标签转为繁体
+music-tag-cli conv-zh -p s2t "~/Music/Music"
+```
+
+#### exp
+
+把标签导出到JSON文件。
   
-  **注意**：请小心使用此功能，最好先检查使用`--dry-run`的结果是否正确，因为有些转换是**不可逆**的。
+如果输出文件已经存在，程序将退出。
 
-  ```shell
-  # 把全部文本标签从 Windows-1252 转为 UTF-8
-  music-tag-cli conv-utf8 -e Windows-1252 "~/Music/Music/old mp3"
+```shell
+# 简单导出
+music-tag-cli exp -o "../backup/all.json" "~/Music/Music"
 
-  # 把全部文本标签从 Shift_JIS 转为 UTF-8
-  music-tag-cli conv-utf8 -e shift_jis "~/Music/Music/日本語"
-  ```
+# 导出，包括属性信息
+music-tag-cli exp -o "../backup/all.json" --with-properties "~/Music/Music"
+```
 
-- conv-zh
+#### imp
 
-  中文文本标签繁简转换，如果要了解更多规则，请看[这里](https://github.com/BYVoid/OpenCC)。
-
-  ```shell
-  # 把全部中文文本标签转为简体
-  music-tag-cli conv-zh -p t2s "~/Music/Music"
+从JSON文件导入标签。（不会导入`props`即属性信息。）
   
-  # 把全部中文文本标签转为繁体
-  music-tag-cli conv-zh -p s2t "~/Music/Music"
-  ```
+如果没有设置`--dry-run`选项，当首次发现JSON元素异常时，程序会中断，但是之前的元素会保存成功。
 
-- exp
+```shell
+# 简单导入
+music-tag-cli imp "../backup/all.json"
 
-  把标签导出到JSON文件。
+# 导入，文件路径`path`会拼接到`~/Music/Music`之后
+music-tag-cli imp -b "~/Music/Music" "../backup/all.json"
+```
+
+#### lrc
+
+导出歌词到`.lrc`文件，或者从`.lrc`文件导入歌词。歌词文件和音乐文件主干名相同，后缀必须是`.lrc`。
   
-  如果输出文件已经存在，程序将退出。
+导出时，如果存在歌词文件不会覆盖。导入时，如果不存在歌词文件会忽略。
 
-  ```shell
-  # 简单导出
-  music-tag-cli exp -o "../backup/all.json" "~/Music/Music"
+导出、导入时都可以指定文件编码，默认是`UTF-8`。
 
-  # 导出，包括属性信息
-  music-tag-cli exp -o "~/Music/Music" --with-properties "../backup/all.json"
-  ```
+```shell
+# 导出歌词
+music-tag-cli lrc -d export "~/Music/Music/"
 
-- imp
+# 使用Windows-1252编码导出
+music-tag-cli lrc -d export -e Windows-1252 "~/Music/Music/"
 
-  从JSON文件导入标签。（不会导入`props`即属性信息。）
+# 导入歌词，使用Windwos-1252编码
+music-tag-cli lrc -d import -e Windows-1252 -b "~/Music/Music"
+```
+
+#### mod-num
   
-  如果没有设置`--dry-run`选项，当首次发现JSON元素异常时，程序会中断，但是之前的元素会保存成功。
+加/减方式修改数字标签，但是修改后的值必须大于0。不会影响值为空的标签。
 
-  ```shell
-  # 简单导入
-  music-tag-cli imp "../backup/all.json"
+```shell
+# 每个曲目编号加1
+music-tag-cli mod-num -t track-number -o 1 "~/Music/Music/John Denver"
 
-  # 导入，文件路径`path`会拼接到`~/Music/Music`之后
-  music-tag-cli imp -b "~/Music/Music" "../backup/all.json"
-  ```
+# 每个曲目编号减2
+music-tag-cli mod-num -t track-number -c decrease -o 2 "~/Music/Music/John Denver"
+```
 
-- mod-num
+#### mod-text-const
+
+修改文本标签，包括增加（add）/替换（replace）/删除（remove）一个固定值，也可以执行截断（truncate）。
+
+##### add 增加
+
+```shell
+# 注释的第2个符，将加入` baisc`，例如，原来："1. from url"，修改后："1. basic from url"
+music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" add -o 2 -a " basic"
+```
   
-  加/减方式修改数字标签，但是修改后的值必须大于0。不会影响值为空的标签。
+##### remove 删除
 
-  ```shell
-  # 每个曲目编号加1
-  music-tag-cli mod-num -t track-number -o 1 "~/Music/Music/John Denver"
+```shell
+# 删除标题从结尾开始数的第4～5个字符
+music-tag-cli mod-text-const -t title "~/Music/Music/dir2" remove -d end -b 3 -e 5
+```
 
-  # 每个曲目编号减2
-  music-tag-cli mod-num -t track-number -c decrease -o 2 "~/Music/Music/John Denver"
-  ```
+##### replace 替换
 
-- mod-text-const
+```shell
+# 替换 `john denver` 为 `John Denver`
+music-tag-cli mod-text-const -t artist,album-artist "~/Music/Music/John Denver" replace -i --from "john denver" --to "John Denver"
+```
 
-  修改文本标签，包括增加（add）/替换（replace）/删除（remove）一个固定值，也可以执行截断（truncate）
+##### truncate 截断
 
-  - add 增加
+```shell
+# 注释标签只保留前20个字符
+music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" truncate -l 20
+```
 
-    ```shell
-    # 注释的第2个符，将加入` baisc`，例如，原来："1. from url"，修改后："1. basic from url"
-    music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" add -o 2 -a " basic"
-    ```
+#### mod-text-regex
+
+以正则表达式替换的方式修改文本标签，支持组的捕获和全局的大小写敏感/不敏感方式。
+
+注意：**不**支持前向、后向断言！
+
+```shell
+# Windows CMD
+music-tag-cli mod-text-regex -t comment "C:\Music\Music\dir2" -i --from "^(From)\s+" --to "something ${1}, "
+
+# Linux/Mac, `$`需要被转义为`\$`
+music-tag-cli mod-text-regex -t comment "~/Music/Music/dir2" -i --from "^(From)\s+" --to "something \${1}, "
+```
+
+#### set-const
+
+设置标签为固定值， 如需更多信息，请输入 `music-tag-cli set-const -h`
+
+```shell
+# 为指定的文本标签设置固定值
+music-tag-cli set-const -t artist,album-artist "~/Music/Music/John Denver" text "John Denver"
+
+# 为指定的数字标签设置固定值
+music-tag-cli set-const -t track-total "~/Music/Music/John Denver" num 10
+music-tag-cli set-const -t disc-number,disc-total "~/Music/Music/John Denver" num 1 --padding 1
+```
+
+#### set-name
+
+从文件名设置标签（只使用文件名主干，不包含路径和扩展名）。
+
+```shell
+# Windows CMD
+music-tag-cli set-name --template "${track-number} - ${title} - ${artist}" "C:\Music\Music\dir"
+
+# Linux/Mac, `$`需要被转义为`\$`
+music-tag-cli set-name --template "\${track-number} - \${title} - \${artist}" "~/Music/Music/John Denver"
+```
+
+##### set-seq
+
+设置标签为序列值，顺序根据文件名排序（对于每个文件夹，序列值会重置）。部分参数：
+
+- start: 开始值，默认1
+- step:  增量值，默认1
+- padding: 格式占位数，默认2
+
+```shell
+# 设置曲目编号为序列值
+music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
+
+# 对现有标题追加序列值
+music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
+```
+
+如需更多信息，请输入 `music-tag-cli set-const -h`
+
+#### ren
   
-  - remove 删除
+使用标签值重命名文件（只修改文件名主干，路径和扩展名保持不变）。
 
-    ```shell
-    # 删除标题从结尾开始数的第4～5个字符
-    music-tag-cli mod-text-const -t title "~/Music/Music/dir2" remove -d end -b 3 -e 5
-    ```
+如果标签值为空，会使用空字符串代替。如果全部为空字符串，不会执行重命名。
 
-  - replace 替换
+```shell
+# Windows CMD
+music-tag-cli ren --template "${track-number}.${title} - ${artist}" "C:\Music\Music\dir"
 
-    ```shell
-    # 替换 `john denver` 为 `John Denver`
-    music-tag-cli mod-text-const -t artist,album-artist "~/Music/Music/John Denver" replace -i --from "john denver" --to "John Denver"
-    ```
+# Linux/Mac, `$`需要被转义为`\$`
+music-tag-cli ren --template "\${track-number}.\${title} - \${artist}" "~/Music/Music/John Denver"
+```
 
-  - truncate 截断
+### 清除文本标签的多种选择
 
-    ```shell
-    # 注释标签只保留前20个字符
-    music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" truncate -l 20
-    ```
+**推荐**使用`clear`命令。
 
-- mod-text-regex
+```shell
+music-tag-cli clear -t copyright ./set-const/001.dsf
+```
 
-  以正则表达式替换的方式修改文本标签，支持组的捕获和全局的大小写敏感/不敏感方式。
-
-  注意：**不**支持前向、后向断言！
-
-  ```shell
-  # Windows CMD
-  music-tag-cli mod-text-regex -t comment "C:\Music\Music\dir2" -i --from "^(From)\s+" --to "something ${1}, "
-
-  # Linux/Mac, `$`需要被转义为`\$`
-  music-tag-cli mod-text-regex -t comment "~/Music/Music/dir2" -i --from "^(From)\s+" --to "something \${1}, "
-  ```
-
-- set-const
-
-  设置标签为固定值， 如需更多信息，请输入 `music-tag-cli set-const -h`
-
-  ```shell
-  # 为指定的文本标签设置固定值
-  music-tag-cli set-const -t artist,album-artist "~/Music/Music/John Denver" text "John Denver"
-  
-  # 为指定的数字标签设置固定值
-  music-tag-cli set-const -t track-total "~/Music/Music/John Denver" num 10
-  music-tag-cli set-const -t disc-number,disc-total "~/Music/Music/John Denver" num 1 --padding 1
-  ```
-
-- set-name
-
-  从文件名设置标签（只使用文件名主干，不包含路径和扩展名）
-
-  ```shell
-  # Windows CMD
-  music-tag-cli set-name --template "${track-number} - ${title} - ${artist}" "C:\Music\Music\dir"
-
-  # Linux/Mac, `$`需要被转义为`\$`
-  music-tag-cli set-name --template "\${track-number} - \${title} - \${artist}" "~/Music/Music/John Denver"
-  ```
-
-- set-seq
-
-  设置标签为序列值，顺序根据文件名排序（对于每个文件夹，序列值会重置）。部分参数：
-
-  - start: 开始值，默认1
-  - step:  增量值，默认1
-  - padding: 格式占位数，默认2
-
-  ```shell
-  # 设置曲目编号为序列值
-  music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
-
-  # 对现有标题追加序列值
-  music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
-  ```
-
-  如需更多信息，请输入 `music-tag-cli set-const -h`
-
-- ren
-  
-  使用标签值重命名文件（只修改文件名主干，路径和扩展名保持不变）
-
-  如果标签值为空，会使用空字符串代替。如果全部为空字符串，不会执行重命名。
-
-  ```shell
-  # Windows CMD
-  music-tag-cli ren --template "${track-number}.${title} - ${artist}" "C:\Music\Music\dir"
-
-  # Linux/Mac, `$`需要被转义为`\$`
-  music-tag-cli ren --template "\${track-number}.\${title} - \${artist}" "~/Music/Music/John Denver"
-  ```
-
-### 清除文本标签
-
-可以把标签设置为长度为零字符串。有下面几种命令可以实现：
+另外下面几个命令可以把标签值设置为长度为零字符串，但都不如`clear`命令干净彻底。
 
 ```shell
 # 使用set-const命令，可以把任意文本标签设置为长度为零字符串，还可搭配`--set-when`选项使用

@@ -13,6 +13,8 @@ use crate::op::Action;
 use crate::op::tag_impl::{ReadWriteTag, TagImpl, WriteTagFile};
 use crate::util::json_de::iter_json_array;
 
+const READ_BUFFER_SIZE: usize = 16 * 1024;
+
 pub struct ImpAction {
     reader: Box<dyn Read>,
     base_dir: Rc<Option<PathBuf>>,
@@ -59,7 +61,7 @@ fn get_file_reader<P>(source_file: P) -> Result<Box<dyn Read>, Error>
 {
     let f = File::open(source_file)?;
     Ok(Box::new(
-        BufReader::with_capacity(16 * 1024, f)
+        BufReader::with_capacity(READ_BUFFER_SIZE, f)
     ))
 }
 
@@ -153,6 +155,10 @@ fn write_tag<T: ReadWriteTag>(my_file: &JsonRecord, t: &mut T) -> bool {
         t.write_text_tag(&MyTag::Copyright, s);
         if !changed { changed = true }
     }
+    if let Some(ref s) = my_file.tags.lyrics {
+        t.write_text_tag(&MyTag::Lyrics, s);
+        if !changed { changed = true }
+    }
     changed
 }
 
@@ -172,6 +178,7 @@ pub(crate) struct JsonTag {
     date: Option<String>,
     comment: Option<String>,
     copyright: Option<String>,
+    lyrics: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

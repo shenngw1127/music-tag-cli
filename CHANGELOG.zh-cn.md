@@ -1,5 +1,13 @@
 # 更新日志 [English](CHANGELOG.md) | [中文繁體](CHANGELOG.zh-tw.md)
 
+## 1.0.3
+
+- (文档) 增加`taglib-rust`的版本兼容性列表
+- (功能) 增加命令 `clear`
+- (功能) 增加命令 `lrc`
+- (功能) 增加文本标签`lyrics`
+- (修复) `exp`导出JSON文件时没有转义`\`
+
 ## 1.0.2
 
 - (重构) 创建`Action`，然后调用方法`do_any(&mut self)`

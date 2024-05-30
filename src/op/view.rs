@@ -52,7 +52,7 @@ impl WalkAction for ViewAction {
         &self.where_clause
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -62,11 +62,9 @@ impl ReadAction for ViewAction {
         self.with_properties
     }
 
-    fn get_content(&self, path: &Path) -> Result<Option<String>, Error> {
-        let v = self.read_tags(path)?;
-
+    fn get_content(&self, path: &Path, v: &MyValues) -> Result<Option<String>, Error> {
         let mut w = Vec::new();
-        let success = output_text(&mut w, self.get_tags(), &v, path)?;
+        let success = output_text(&mut w, self.tags(), &v, path)?;
         if success {
             let s = String::from_utf8(w)?;
             Ok(Some(s))
@@ -93,11 +91,23 @@ fn output_text<W, P>(writer: &mut W,
     if !v.is_empty_value() {
         writeln!(writer, "-- TAGS for {:?} --", path.as_ref())?;
         for tag in tags {
-            let tag_name = tag.to_string();
-            writeln!(writer, "{} {} - {}",
-                     &tag_name,
-                     " ".repeat(get_space_count(&tag_name)),
-                     &v.get_text(tag).unwrap_or_default())?;
+            match tag {
+                MyTag::Lyrics => {
+                    writeln!(writer, "{} {} -",
+                             MyTag::Lyrics,
+                             " ".repeat(get_space_count(&MyTag::Lyrics.to_string())))?;
+                    if let Some(v) = v.get_text(tag) {
+                        writeln!(writer, "{}", v)?;
+                    }
+                }
+                other_tag => {
+                    let tag_name = other_tag.to_string();
+                    writeln!(writer, "{} {} - {}",
+                             tag_name,
+                             " ".repeat(get_space_count(&tag_name)),
+                             &v.get_text(tag).unwrap_or_default())?;
+                }
+            }
         }
 
         if !v.is_empty_properties() {

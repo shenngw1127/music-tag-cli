@@ -1,12 +1,13 @@
 extern crate lazy_static;
 
+use std::{fs, iter};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
-use std::{fs, iter};
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Error};
 use chrono::NaiveDate;
+use encoding_rs::Encoding as EncodingRs;
 use itertools::Itertools;
 use log::{debug, error, warn};
 use walkdir::WalkDir;
@@ -15,29 +16,31 @@ use crate::model::{ConstValue, ModifyMode, MyTag};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
+pub use self::clear::ClearAction;
 pub use self::conv_en::ConvEnAction;
 pub use self::conv_utf8::ConvUtf8Action;
 pub use self::conv_zh::ConvZhAction;
 pub use self::exp::ExpAction;
 pub use self::imp::ImpAction;
+pub use self::lrc::{LrcExpAction, LrcImpAction};
 pub use self::mod_num::ModNumAction;
 pub use self::mod_text_const::ModTextConstAction;
 pub use self::mod_text_regex::ModTextRegexAction;
-pub use self::set_const::SetConstAction;
-pub use self::set_name::{SetNameAction, get_tags_from_template};
-pub use self::set_seq::SetSeqAction;
 pub use self::ren::RenAction;
+pub use self::set_const::SetConstAction;
+pub use self::set_name::{get_tags_from_template, SetNameAction};
+pub use self::set_seq::SetSeqAction;
+use self::tag_impl::{is_available_suffix, TagImpl};
+pub use self::tag_impl::ReadTag;
 pub use self::view::ViewAction;
 
-pub use self::tag_impl::ReadTag;
-
-use self::tag_impl::{is_available_suffix, TagImpl};
-
+mod clear;
 mod conv_en;
 mod conv_utf8;
 mod conv_zh;
 mod exp;
 mod imp;
+mod lrc;
 mod mod_num;
 mod mod_text_const;
 mod mod_text_regex;
@@ -158,7 +161,7 @@ trait WalkAction: Action {
         check_where(self.get_where(), t)
     }
 
-    fn get_tags(&self) -> &Vec<MyTag>;
+    fn tags(&self) -> &Vec<MyTag>;
 }
 
 fn check_where(where_clause: &Option<WhereClause>, t: &dyn ReadTag) -> Result<bool, Error> {
@@ -189,7 +192,7 @@ trait SeqAction: Action {
 
     fn do_one_file(&mut self, path: &Path, seq: &Option<&str>) -> Result<(), Error>;
 
-    fn get_tags(&self) -> &Vec<MyTag>;
+    fn tags(&self) -> &Vec<MyTag>;
 }
 
 fn sorted_filtered_files<P>(path: P) -> Result<Vec<PathBuf>, Error>
@@ -210,7 +213,8 @@ trait ReadAction: WalkAction {
     fn with_properties(&self) -> bool;
 
     fn do_one_file_read(&mut self, path: &Path) -> Result<bool, Error> {
-        if let Some(content) = self.get_content(path)? {
+        let v = self.read_tags_value(path)?;
+        if let Some(content) = self.get_content(path, &v)? {
             debug!("content: {}", &content);
             self.do_output(path, &content)
         } else {
@@ -218,17 +222,17 @@ trait ReadAction: WalkAction {
         }
     }
 
-    fn get_content(&self, path: &Path) -> Result<Option<String>, Error>;
+    fn get_content(&self, path: &Path, v: &MyValues) -> Result<Option<String>, Error>;
 
     fn do_output(&mut self, path: &Path, content: &str) -> Result<bool, Error>;
 
-    fn read_tags(&self, path: &Path) -> Result<MyValues, Error> {
+    fn read_tags_value(&self, path: &Path) -> Result<MyValues, Error> {
         let tag_impl = TagImpl::new(&path, true)?;
-        self.get_tags_some(&tag_impl)
+        self.read_tags(&tag_impl)
     }
 
-    fn get_tags_some(&self, t: &dyn ReadTag) -> Result<MyValues, Error> {
-        let tags = self.get_tags();
+    fn read_tags(&self, t: &dyn ReadTag) -> Result<MyValues, Error> {
+        let tags = self.tags();
         if tags.is_empty() {
             return Ok(MyValues { raw: None, properties: None });
         }
@@ -239,7 +243,7 @@ trait ReadAction: WalkAction {
 
         let mut map: HashMap<&MyTag, MyValue> = HashMap::with_capacity(tags.len());
         for tag in tags {
-            let v = get_tag(t, tag);
+            let v = get_tags_value(t, tag);
             map.insert(tag, v);
         }
 
@@ -258,29 +262,15 @@ trait WriteAction: WalkAction {
 
     fn do_one_file_write(&self, path: &Path) -> Result<bool, Error> {
         let mut tag_impl = TagImpl::new(&path, self.is_dry_run())?;
-        self.set_tags_some(&mut tag_impl)
+        self.write_tags(&mut tag_impl)
     }
 
-    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error>;
+    fn write_tags(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error>;
 }
 
 trait WriteTextAction: WriteAction {
-    fn set_text_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
-        let current = &t.get_text_tag(tag);
-        let new_value = self.get_new_text(current);
-
-        if let Some(new_v) = &new_value {
-            t.write_text_tag(tag, new_v);
-            true
-        } else {
-            false
-        }
-    }
-
-    fn get_new_text(&self, current: &Option<String>) -> Option<String>;
-
-    fn set_tags_some_impl(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
-        if self.get_tags().is_empty() {
+    fn write_tags_impl(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        if self.tags().is_empty() {
             return Ok(false);
         }
 
@@ -289,16 +279,17 @@ trait WriteTextAction: WriteAction {
         }
 
         let mut any_changed = false;
-        for tag in self.get_tags() {
+        for tag in self.tags() {
             let changed = match tag {
-                MyTag::Title => self.set_text_tag(t, &MyTag::Title),
-                MyTag::Artist => self.set_text_tag(t, &MyTag::Artist),
-                MyTag::AlbumTitle => self.set_text_tag(t, &MyTag::AlbumTitle),
-                MyTag::Genre => self.set_text_tag(t, &MyTag::Genre),
-                MyTag::Comment => self.set_text_tag(t, &MyTag::Comment),
-                MyTag::AlbumArtist => self.set_text_tag(t, &MyTag::AlbumArtist),
-                MyTag::Composer => self.set_text_tag(t, &MyTag::Composer),
-                MyTag::Copyright => self.set_text_tag(t, &MyTag::Copyright),
+                MyTag::Title
+                | MyTag::Artist
+                | MyTag::AlbumTitle
+                | MyTag::Genre
+                | MyTag::Comment
+                | MyTag::AlbumArtist
+                | MyTag::Composer
+                | MyTag::Copyright
+                | MyTag::Lyrics => self.set_text_tag(t, tag),
 
                 _ => false,
             };
@@ -314,11 +305,29 @@ trait WriteTextAction: WriteAction {
             Ok(false)
         }
     }
+
+    fn set_text_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool;
+}
+
+trait WriteTextForCurrentAction: WriteTextAction {
+    fn set_text_tag_impl(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
+        let current = &t.get_text_tag(tag);
+        let new_value = self.get_new_text(current);
+
+        if let Some(new_v) = &new_value {
+            t.write_text_tag(tag, new_v);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn get_new_text(&self, current: &Option<String>) -> Option<String>;
 }
 
 trait WriteNumAction: WriteAction {
-    fn set_tags_some_impl(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
-        if self.get_tags().is_empty() {
+    fn write_tags_impl(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        if self.tags().is_empty() {
             return Ok(false);
         }
 
@@ -327,13 +336,13 @@ trait WriteNumAction: WriteAction {
         }
 
         let mut any_changed = false;
-        for tag in self.get_tags() {
+        for tag in self.tags() {
             let changed = match tag {
-                MyTag::Year => self.set_numeric_tag(t, &MyTag::Year),
-                MyTag::TrackNumber => self.set_numeric_tag(t, &MyTag::TrackNumber),
-                MyTag::TrackTotal => self.set_numeric_tag(t, &MyTag::TrackTotal),
-                MyTag::DiscNumber => self.set_numeric_tag(t, &MyTag::DiscNumber),
-                MyTag::DiscTotal => self.set_numeric_tag(t, &MyTag::DiscTotal),
+                MyTag::Year
+                | MyTag::TrackNumber
+                | MyTag::TrackTotal
+                | MyTag::DiscNumber
+                | MyTag::DiscTotal => self.set_numeric_tag(t, tag),
 
                 _ => false,
             };
@@ -373,8 +382,8 @@ trait WriteNumAction: WriteAction {
 }
 
 trait WriteAllAction: WriteAction {
-    fn set_tags_some_impl(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
-        if self.get_tags().is_empty() {
+    fn write_tags_impl(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        if self.tags().is_empty() {
             return Ok(false);
         }
 
@@ -383,24 +392,25 @@ trait WriteAllAction: WriteAction {
         }
 
         let mut any_changed = false;
-        for tag in self.get_tags() {
+        for tag in self.tags() {
             let changed = match tag {
-                MyTag::Title => self.set_text_tag(t, &MyTag::Title),
-                MyTag::Artist => self.set_text_tag(t, &MyTag::Artist),
-                MyTag::AlbumTitle => self.set_text_tag(t, &MyTag::AlbumTitle),
-                MyTag::Genre => self.set_text_tag(t, &MyTag::Genre),
-                MyTag::Comment => self.set_text_tag(t, &MyTag::Comment),
-                MyTag::AlbumArtist => self.set_text_tag(t, &MyTag::AlbumArtist),
-                MyTag::Composer => self.set_text_tag(t, &MyTag::Composer),
-                MyTag::Copyright => self.set_text_tag(t, &MyTag::Copyright),
+                MyTag::Title
+                | MyTag::Artist
+                | MyTag::AlbumTitle
+                | MyTag::Genre
+                | MyTag::Comment
+                | MyTag::AlbumArtist
+                | MyTag::Composer
+                | MyTag::Copyright
+                | MyTag::Lyrics => self.set_text_tag(t, tag),
 
-                MyTag::Year => self.set_numeric_tag(t, &MyTag::Year),
-                MyTag::TrackNumber => self.set_numeric_tag(t, &MyTag::TrackNumber),
-                MyTag::TrackTotal => self.set_numeric_tag(t, &MyTag::TrackTotal),
-                MyTag::DiscNumber => self.set_numeric_tag(t, &MyTag::DiscNumber),
-                MyTag::DiscTotal => self.set_numeric_tag(t, &MyTag::DiscTotal),
+                MyTag::Year
+                | MyTag::TrackNumber
+                | MyTag::TrackTotal
+                | MyTag::DiscNumber
+                | MyTag::DiscTotal => self.set_numeric_tag(t, &tag),
 
-                MyTag::Date => self.set_date_tag(t, &MyTag::Date),
+                MyTag::Date => self.set_date_tag(t, &tag),
             };
             if !any_changed {
                 any_changed = changed;
@@ -427,12 +437,12 @@ trait SeqWriteAction: SeqAction {
 
     fn do_one_file_write(&self, path: &Path, seq: &Option<&str>) -> Result<(), Error> {
         let mut tag_impl = TagImpl::new(&path, self.is_dry_run())?;
-        self.set_tags_some(&mut tag_impl, seq)
+        self.set_tags(&mut tag_impl, seq)
     }
 
-    fn set_tags_some(&self,
-                     t: &mut dyn ReadWriteTag,
-                     other: &Option<&str>) -> Result<(), Error>;
+    fn set_tags(&self,
+                t: &mut dyn ReadWriteTag,
+                other: &Option<&str>) -> Result<(), Error>;
 }
 
 fn get_tags_from_args(tags: &[MyTag], default: &[MyTag]) -> Result<Vec<MyTag>, Error> {
@@ -537,7 +547,7 @@ fn string_to_option(new_value: String, value: &str) -> Option<String> {
     }
 }
 
-fn get_tag(t: &dyn ReadTag, tag: &MyTag) -> MyValue {
+fn get_tags_value(t: &dyn ReadTag, tag: &MyTag) -> MyValue {
     if tag.is_text() || tag.is_date() {
         if let Some(s) = t.get_text_tag(tag) {
             return MyValue::Text(s);
@@ -682,4 +692,22 @@ fn numeric_is_valid(tag: &MyTag, numeric_value: u32) -> bool {
         MyTag::DiscTotal => MIN_NATURAL_NUMBER <= numeric_value && numeric_value <= MAX_NUMBER,
         _ => false
     }
+}
+
+fn get_encoding(enc_name: &str) -> Result<&'static EncodingRs, Error> {
+    let encoding = EncodingRs::for_label(enc_name.as_bytes());
+    encoding.ok_or(anyhow!("Unsupported encoding: {}", enc_name))
+}
+
+fn check_encoding_not_utf8(e: &'static EncodingRs) -> Result<(), Error> {
+    if is_utf8(e) {
+        Err(anyhow!("Encoding could NOT be UTF-8."))
+    } else {
+        Ok(())
+    }
+}
+
+fn is_utf8(e: &'static EncodingRs) -> bool {
+    let s = e.name().to_lowercase();
+    s.eq("utf8") || s.eq("utf-8")
 }

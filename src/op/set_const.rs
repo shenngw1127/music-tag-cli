@@ -131,7 +131,7 @@ impl WalkAction for SetConstAction {
         &self.where_clause
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -141,8 +141,8 @@ impl WriteAction for SetConstAction {
         self.dry_run
     }
 
-    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
-        self.set_tags_some_impl(t)
+    fn write_tags(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.write_tags_impl(t)
     }
 }
 

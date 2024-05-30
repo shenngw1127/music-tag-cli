@@ -24,6 +24,7 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 | disc-number  | disc number  | numeric |
 | disc-total   | disc total   | numeric |
 | copyright    | copyright    | text    |
+| lyrics       | lyrics       | text    |
 
 ## Help
 
@@ -34,11 +35,13 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 | Sumcommand     | Description                                                                                   |
 |----------------|-----------------------------------------------------------------------------------------------|
 | view           | View tags                                                                                     |
+| clear          | Remove value of tags                                                                          |
 | conv-en        | Convert text tags in English between lowercase / uppercase / tilecase.                        |
 | conv-utf8      | Convert text tags to UTF-8 encoding.                                                          |
 | conv-zh        | Convert text tags in Chinese characters between Traditional / Simplified /Japanese Shinjitai. |
 | exp            | Export tags to file.                                                                          |
 | imp            | Import tags from file.                                                                        |
+| lrc            | Export / Import lyrics to / from `.lrc` file.                                                 |
 | mod-num        | Modify numeric tags by increase/decrease an integer.                                          |
 | mod-text-const | Modify text tags by add/replace/remove a constant value,also could truncate.                  |
 | mod-text-regex | Modify text tags by REGEX replace.                                                            |
@@ -52,233 +55,269 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 
 Note: All file path in examples is **Unix/Linux/Mac** mode, if you use **Windows** series, please use path in Windows format. e.g. "C:\some-path". Please make sure all characters must be in UNICODE character set. It must surrund by `"` if it contains space character.
 
-- General Options
+#### General Options
 
-  These options are available for all command to modify / set / conv tags. (Except `exp`, `view` commands.)
+These options are available for all command to modify / set / conv tags. (Except `exp`, `view` commands.)
 
-  ```shell
-      --dry-run                    Only show how to modify tags, but do NOT write any file, if it was set as true.
-  -q, --quiet                      Only show error in console, if it was set as true.
-  ```
+```shell
+    --dry-run                    Only show how to modify tags, but do NOT write any file, if it was set as true.
+-q, --quiet                      Only show error in console, if it was set as true.
+```
 
-  This option are available for all commands **except** `imp`, `set-seq`.
+This option are available for all commands **except** `imp`, `set-seq`.
 
-  ```shell
-      --where <WHERE_CLAUSE>
-          `Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. Note: `'` should be escaped as `''` like in SQL string.
-  ```
+```shell
+    --where <WHERE_CLAUSE>
+        `Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. Note: `'` should be escaped as `''` like in SQL string.
+```
+
+Note: `=` `!=` `<>` for text tag is case sensitive.
+
+for example:
+
+```shell
+# only view tags that's track-number between 10 - 100
+music-tag-cli view "~/Music/Music/John Denver" --where "track-number >= 10 and track-number <= 100"
+```
+
+#### view
+
+View tags.
+
+```shell
+# View all tags in all files
+music-tag-cli view ~/Music/Music
+
+# View all tags with properties
+music-tag-cli view --with-properties "~/Music/Music/John Denver"
+
+# View only specified tags
+music-tag-cli view -t title,artist,album-artist "~/Music/Music/John Denver"
+```
+
+#### clear
+
+Remove value of tags.
+
+**Note**: Please use this feature with caution, and it is best to check whether the results are correct using `--dry-run` first, because clearing is **irreversible**.
+
+```shell
+# Clear comment and copyright
+music-tag-cli clear -t comment,copyright "~/Music/Music"
+```
+
+#### conv-en
+
+Convert text tags in English between lowercase, uppercase and titlecase.
+
+```shell
+# Convert all title tag to titlecase
+music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+
+# Convert all comment tag to lowercase
+music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
+
+# Convert all copyright tag to uppercase
+music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
+```
+
+#### conv-utf8
+
+Convert text tags to UTF-8 encoding.
+
+**Note**: Please use this function with caution. It is the best to check whether the result of using `--dry-run` is correct at first, because some encodingconversion was **irreversible**.
+
+```shell
+# Convert all text tag from Windows-1252 to UTF-8 encoding
+music-tag-cli conv-utf8 -e Windows-1252 "~/Music/Music/old mp3"
+
+# Convert all text tag from Shift_JIS to UTF-8 encoding
+music-tag-cli conv-utf8 -e shift_jis "~/Music/Music/日本語"
+```
+
+#### conv-zh
+
+Convert text tags in Chinese between Traditional and Simplified, for more profiles, please see [here](https://github.com/BYVoid/OpenCC).
+
+```shell
+# Convert all text tag from Traditional Chinese to Simple Chinese
+music-tag-cli conv-zh -p t2s "~/Music/Music"
+
+# Convert all text tag from Simple Chinese to Traditional Chinese
+music-tag-cli conv-zh -p s2t "~/Music/Music"
+```
+
+#### exp
+
+Export tags to file in JSON format.
+
+Program will exit if output file exists.
+
+```shell
+# Expoprt basic
+music-tag-cli exp -o "../backup/all.json" "~/Music/Music"
+
+# Export with properties
+music-tag-cli exp -o "../backup/all.json" --with-properties "~/Music/Music"
+```
+
+#### imp
+
+Import tags from JSON file. (`props` was NOT processed.)
+
+It will break when first JSON element valid fail, but all before it will be saved if does NOT set `--dry-run` option.
+
+```shell
+# Import basic
+music-tag-cli imp "../backup/all.json"
+
+# Import it, path will be joined after `~/Music/Music`
+music-tag-cli imp -b "~/Music/Music" "../backup/all.json"
+```
+
+#### lrc
+
+Export lyrics to a `.lrc` file, or import lyrics from a `.lrc` file. The lyrics file has the same name as the music file, and the extension must be `.lrc`.
+
+When exporting, if the lyrics file exists, it will not be overwritten. When importing, if the lyrics file does not exist, it will be ignored.
+
+You can specify the file encoding when exporting or importing. The default is `UTF-8`.
+
+```shell
+# Export lyrics
+music-tag-cli lrc -d export "~/Music/Music/"
+
+# Export lyrics using Windows-1252 encoding
+music-tag-cli lrc -d export -e Windows-1252 "~/Music/Music/"
+
+# Import lyrics, using Windwos-1252 encoding
+music-tag-cli lrc -d import -e Windows-1252 -b "~/Music/Music"
+```
+
+#### mod-num
   
-  Note: `=` `!=` `<>` for text tag is case sensitive.
+Modify numeric tags by increase / decrease an integer, and must be great than 0. It will **NOT** affect empty tags.
 
-  for example:
+```shell
+# each track-number plus 1
+music-tag-cli mod-num -t track-number -o 1 "~/Music/Music/John Denver"
 
-  ```shell
-  # only view tags that's track-number between 10 - 100
-  music-tag-cli view "~/Music/Music/John Denver" --where "track-number >= 10 and track-number <= 100"
-  ```
+# each track-number subset 2
+music-tag-cli mod-num -t track-number -c decrease -o 2 "~/Music/Music/John Denver"
+```
 
-- view
+#### mod-text-const
 
-  View tags.
+Modify text tags by add / replace / remove a Constant value, also could truncate.
 
-  ```shell
-  # View all tags in all files
-  music-tag-cli view ~/Music/Music
+##### add
 
-  # View all tags with properties
-  music-tag-cli view --with-properties "~/Music/Music/John Denver"
+```shell
+# comment will at first 2 charcters insert ` baisc`, e.g. orininal: "1. from url", new: "1. basic from url"
+music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" add -o 2 -a " basic"
+```
 
-  # View only specified tags
-  music-tag-cli view -t title,artist,album-artist "~/Music/Music/John Denver"
-  ```
+##### remove
 
-- conv-en
+```shell
+# remove the character position 4 to 5 from the end of title
+music-tag-cli mod-text-const -t title "~/Music/Music/dir2" remove -d end -b 3 -e 5
+```
 
-  Convert text tags in English between lowercase, uppercase and titlecase.
+##### replace
 
-  ```shell
-  # Convert all title tag to titlecase
-  music-tag-cli conv-en -p titlecase -t title "~/Music/Music/dir2"
+```shell
+# replace `john denver` to `John Denver`
+music-tag-cli mod-text-const -t artist,album-artist "~/Music/Music/John Denver" replace -i --from "john denver" --to "John Denver"
+```
 
-  # Convert all comment tag to lowercase
-  music-tag-cli conv-en -p lowercase -t comment "~/Music/Music/dir2"
+##### truncate
+
+```shell
+# comment will be truncated as 20 characters from beginning
+music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" truncate -l 20
+```
+
+#### mod-text-regex
+
+Modify text tags by REGEX replace, support group capture, and global case sensitive/insensitive.
+
+Note: Lookahead / Lookbehind assertion is **NOT** supported!
+
+```shell
+# Windows CMD
+music-tag-cli mod-text-regex -t comment "C:\Music\Music\dir2" -i --from "^(From)\s+" --to "something ${1}, "
+
+# Linux/Mac, `$` must be escaped as `\$`
+music-tag-cli mod-text-regex -t comment "~/Music/Music/dir2" -i --from "^(From)\s+" --to "something \${1}, "
+```
+
+#### set-const
+
+Set a Constant value for tags, for more options, please type `music-tag-cli set-const -h`
+
+```shell
+# Set a constant for some text tags in files
+music-tag-cli set-const -t artist,album-artist "~/Music/Music/John Denver" text "John Denver"
+
+# Set a constant for some numeric tags in files
+music-tag-cli set-const -t track-total "~/Music/Music/John Denver" num 10
+music-tag-cli set-const -t disc-number,disc-total "~/Music/Music/John Denver" num 1 --padding 1
+```
+
+#### set-name
+
+Set tags from filename (only use file stem, WITHOUT path and extension)
+
+```shell
+# Windows CMD
+music-tag-cli set-name --template "${track-number} - ${title} - ${artist}" "C:\Music\Music\dir"
+
+# Linux/Mac, `$` must be escaped as `\$`
+music-tag-cli set-name --template "\${track-number} - \${title} - \${artist}" "~/Music/Music/John Denver"
+```
+
+#### set-seq
+
+Set a sequence for some tag in files, sorted by file name (each folder reset the sequence). Some arguments:
+
+- start: 1 (defaut)
+- step: 1 (defaut)
+- padding: 2 (defaut)
+
+```shell
+# Set numeric track-number as sequence
+music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
+
+# Append title to sequece
+music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
+```
+
+for more options, please type `music-tag-cli set-const -h`
+
+#### ren
   
-  # Convert all copyright tag to uppercase
-  music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
-  ```
+Rename filename with tags (only modify the file stem, WITHOUT path and extension).
 
-- conv-utf8
+It will be empty string if not found value of the tag. All value is empty will NOT rename it.
 
-  Convert text tags to UTF-8 encoding.
+```shell
+# Windows CMD
+music-tag-cli ren --template "${track-number}.${title} - ${artist}" "C:\Music\Music\dir"
 
-  **Note**: Please use this function with caution. It is the best to check whether the result of using `--dry-run` is correct at first, because some encoding conversion was **irreversible**.
+# Linux/Mac, `$` must be escaped as `\$`
+music-tag-cli ren --template "\${track-number}.\${title} - \${artist}" "~/Music/Music/John Denver"
+```
 
-  ```shell
-  # Convert all text tag from Windows-1252 to UTF-8 encoding
-  music-tag-cli conv-utf8 -e Windows-1252 "~/Music/Music/old mp3"
+### Multiple ways for clearing text tags
 
-  # Convert all text tag from Shift_JIS to UTF-8 encoding
-  music-tag-cli conv-utf8 -e shift_jis "~/Music/Music/日本語"
-  ```
+**Recommended** use the `clear` command.
 
-- conv-zh
+```shell
+music-tag-cli clear -t copyright ./set-const/001.dsf
+```
 
-  Convert text tags in Chinese between Traditional and Simplified, for more profiles, please see [here](https://github.com/BYVoid/OpenCC).
-
-  ```shell
-  # Convert all text tag from Traditional Chinese to Simple Chinese
-  music-tag-cli conv-zh -p t2s "~/Music/Music"
-  
-  # Convert all text tag from Simple Chinese to Traditional Chinese
-  music-tag-cli conv-zh -p s2t "~/Music/Music"
-  ```
-
-- exp
-
-  Export tags to file in JSON format.
-  
-  Program will exit if output file exists.
-
-  ```shell
-  # Exp basic
-  music-tag-cli exp -o "../backup/all.json" "~/Music/Music"
-
-  # Exp with properties
-  music-tag-cli exp -o "~/Music/Music" --with-properties "../backup/all.json"
-  ```
-
-- imp
-
-  Import tags from JSON file. (`props` was NOT processed.)
-  
-  It will break when first JSON element valid fail, but all before it will be saved if does NOT set `--dry-run` option.
-
-  ```shell
-  # Import basic
-  music-tag-cli imp "../backup/all.json"
-
-  # Import it, path will be joined after `~/Music/Music`
-  music-tag-cli imp -b "~/Music/Music" "../backup/all.json"
-  ```
-
-- mod-num
-  
-  Modify numeric tags by increase / decrease an integer, and must be great than 0. It will **NOT** affect empty tags.
-
-  ```shell
-  # each track-number plus 1
-  music-tag-cli mod-num -t track-number -o 1 "~/Music/Music/John Denver"
-
-  # each track-number subset 2
-  music-tag-cli mod-num -t track-number -c decrease -o 2 "~/Music/Music/John Denver"
-  ```
-
-- mod-text-const
-
-  Modify text tags by add / replace / remove a Constant value, also could truncate.
-
-  - add
-
-    ```shell
-    # comment will at first 2 charcters insert ` baisc`, e.g. orininal: "1. from url", new: "1. basic from url"
-    music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" add -o 2 -a " basic"
-    ```
-  
-  - remove
-
-    ```shell
-    # remove the character position 4 to 5 from the end of title
-    music-tag-cli mod-text-const -t title "~/Music/Music/dir2" remove -d end -b 3 -e 5
-    ```
-
-  - replace
-
-    ```shell
-    # replace `john denver` to `John Denver`
-    music-tag-cli mod-text-const -t artist,album-artist "~/Music/Music/John Denver" replace -i --from "john denver" --to "John Denver"
-    ```
-
-  - truncate
-
-    ```shell
-    # comment will be truncated as 20 characters from beginning
-    music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" truncate -l 20
-    ```
-
-- mod-text-regex
-
-  Modify text tags by REGEX replace, support group capture, and global case sensitive/insensitive.
-
-  Note: Lookahead / Lookbehind assertion is **NOT** supported!
-
-  ```shell
-  # Windows CMD
-  music-tag-cli mod-text-regex -t comment "C:\Music\Music\dir2" -i --from "^(From)\s+" --to "something ${1}, "
-
-  # Linux/Mac, `$` must be escaped as `\$`
-  music-tag-cli mod-text-regex -t comment "~/Music/Music/dir2" -i --from "^(From)\s+" --to "something \${1}, "
-  ```
-
-- set-const
-
-  Set a Constant value for tags, for more options, please type `music-tag-cli set-const -h`
-
-  ```shell
-  # Set a constant for some text tags in files
-  music-tag-cli set-const -t artist,album-artist "~/Music/Music/John Denver" text "John Denver"
-
-  # Set a constant for some numeric tags in files
-  music-tag-cli set-const -t track-total "~/Music/Music/John Denver" num 10
-  music-tag-cli set-const -t disc-number,disc-total "~/Music/Music/John Denver" num 1 --padding 1
-  ```
-
-- set-name
-
-  Set tags from filename (only use file stem, WITHOUT path and extension)
-
-  ```shell
-  # Windows CMD
-  music-tag-cli set-name --template "${track-number} - ${title} - ${artist}" "C:\Music\Music\dir"
-
-  # Linux/Mac, `$` must be escaped as `\$`
-  music-tag-cli set-name --template "\${track-number} - \${title} - \${artist}" "~/Music/Music/John Denver"
-  ```
-
-- set-seq
-
-  Set a sequence for some tag in files, sorted by file name (each folder reset the sequence). Some arguments:
-
-  - start: 1 (defaut)
-  - step: 1 (defaut)
-  - padding: 2 (defaut)
-
-  ```shell
-  # Set numeric track-number as sequence
-  music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
-
-  # Append title to sequece
-  music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
-  ```
-
-  for more options, please type `music-tag-cli set-const -h`
-
-- ren
-  
-  Rename filename with tags (only modify the file stem, WITHOUT path and extension)
-
-  It will be empty string if not found value of the tag. All value is empty will NOT rename it.
-
-  ```shell
-  # Windows CMD
-  music-tag-cli ren --template "${track-number}.${title} - ${artist}" "C:\Music\Music\dir"
-
-  # Linux/Mac, `$` must be escaped as `\$`
-  music-tag-cli ren --template "\${track-number}.\${title} - \${artist}" "~/Music/Music/John Denver"
-  ```
-
-### Clear text tags
-
-You could use some command set the text tags' value to zero length string:
+The following commands can also set the tag value to a zero-length string, but none of them are as clean and thorough as the `clear` command.
 
 ```shell
 # set-const, also could use `--set-when` option

@@ -1,5 +1,13 @@
 # Change Log [中文简体](CHANGELOG.zh-cn.md) | [中文繁體](CHANGELOG.zh-tw.md)
 
+## 1.0.3
+
+- (doc) add compatible list with taglib-rust
+- (feat) add command `clear`
+- (feat) add command `lrc`
+- (feat) add `lyrics` as text tag
+- (fix) exp JSON not escape `\`
+
 ## 1.0.2
 
 - (refactor) create `Action` then call method `do_any(&mut self)`

@@ -54,6 +54,7 @@ impl ReadTag for TaglibWrapper<'_> {
                 MyTag::AlbumArtist => t.album_artist(),
                 MyTag::Composer => t.composer(),
                 MyTag::Copyright => t.copyright(),
+                MyTag::Lyrics => t.lyrics(),
 
                 MyTag::Date => t.date(),
 
@@ -133,27 +134,27 @@ impl WriteTag for TaglibWrapper<'_> {
                 let completed = match key {
                     MyTag::Title => {
                         t.set_title(value);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::Artist => {
                         t.set_artist(value);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::AlbumTitle => {
                         t.set_album(value);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::Genre => {
                         t.set_genre(value);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                         true
                     }
                     MyTag::Comment => {
                         t.set_comment(value);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                         true
                     }
                     _ => false,
@@ -167,20 +168,24 @@ impl WriteTag for TaglibWrapper<'_> {
             match key {
                 MyTag::AlbumArtist => {
                     self.file.set_album_artist(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Composer => {
                     self.file.set_composer(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Copyright => {
                     self.file.set_copyright(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
+                }
+                MyTag::Lyrics => {
+                    self.file.set_lyrics(value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
 
                 MyTag::Date => {
                     self.file.set_date(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 _ => (),
             }
@@ -195,7 +200,7 @@ impl WriteTag for TaglibWrapper<'_> {
                     MyTag::Year => {
                         if value <= MAX_NUMBER {
                             t.set_year(value);
-                            info!("file {:?} set {}: {}", &self.file_name, key, value);
+                            info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                             true
                         } else {
                             false
@@ -212,28 +217,116 @@ impl WriteTag for TaglibWrapper<'_> {
                 match key {
                     MyTag::TrackNumber => {
                         self.file.set_track_number(value, padding);
-                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
+                        info!("file {:?} set tag {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     MyTag::TrackTotal => {
                         self.file.set_track_total(value, padding);
-                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
+                        info!("file {:?} set tag {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     MyTag::DiscNumber => {
                         self.file.set_disc_number(value, padding);
-                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
+                        info!("file {:?} set tag {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     MyTag::DiscTotal => {
                         self.file.set_disc_total(value, padding);
-                        info!("file {:?} set {}: {} with padding {}", &self.file_name,
+                        info!("file {:?} set tag {}: {} with padding {}", &self.file_name,
                             key, value, padding);
                     }
                     _ => (),
                 }
             }
         }
+    }
+
+    fn clear_tag(&mut self, key: &MyTag) {
+        {
+            let t = &mut self.file.tag().unwrap();
+            let completed = match key {
+                MyTag::Title => {
+                    t.set_title("");
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                    true
+                },
+                MyTag::Artist => {
+                    t.set_artist("");
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                    true
+                }
+                MyTag::AlbumTitle => {
+                    t.set_album("");
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                    true
+                }
+                MyTag::Genre => {
+                    t.set_genre("");
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                    true
+                }
+                MyTag::Comment => {
+                    t.set_comment("");
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                    true
+                }
+                MyTag::Year => {
+                    t.set_year(0);
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                    true
+                }
+                _ => false,
+            };
+
+            if completed {
+                return;
+            }
+
+            match key {
+                MyTag::AlbumArtist => {
+                    self.file.remove_album_artist();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                MyTag::Composer => {
+                    self.file.remove_composer();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                MyTag::Copyright => {
+                    self.file.remove_copyright();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                MyTag::Lyrics => {
+                    self.file.remove_lyrics();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+
+                MyTag::TrackNumber => {
+                    self.file.remove_track_number();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                MyTag::TrackTotal => {
+                    self.file.remove_track_total();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                MyTag::DiscNumber => {
+                    self.file.remove_disc_number();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                MyTag::DiscTotal => {
+                    self.file.remove_disc_total();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+
+                MyTag::Date => {
+                    self.file.remove_date();
+                    info!("file {:?} remove tag {}", &self.file_name, key);
+                }
+                _ => (),
+            }
+
+        }
+
+
     }
 }
 

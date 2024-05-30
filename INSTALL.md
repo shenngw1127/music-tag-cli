@@ -117,6 +117,15 @@ If you want get a static linked version, maybe just compile it by your self.
 
 ### Compile Music-Tag-Cli
 
+#### Vesion match
+
+| music-tag-cli | taglib-rust |                    taglib                     |
+|:-------------:|:-----------:|:---------------------------------------------:|
+|     1.0.0     |    2.0.0    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
+|     1.0.1     |    2.0.1    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
+|     1.0.2     |    2.0.1    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
+|     1.0.3     |    2.0.2    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
+
 #### Set environment
 
 ```shell

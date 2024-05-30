@@ -34,6 +34,7 @@ pub enum MyTag {
     Date,
     Comment,
     Copyright,
+    Lyrics,
 }
 
 impl MyTag {
@@ -74,6 +75,7 @@ impl MyTag {
             MyTag::Date => MyTagType::Date,
             MyTag::Comment => MyTagType::Text,
             MyTag::Copyright => MyTagType::Text,
+            MyTag::Lyrics => MyTagType::Text,
         }
     }
 
@@ -88,7 +90,8 @@ impl MyTag {
 }
 
 lazy_static! {
-    pub static ref ALL_TAGS: Vec<MyTag> = vec![MyTag::Title,
+    pub static ref ALL_TAGS: Vec<MyTag> = vec![
+        MyTag::Title,
         MyTag::Artist,
         MyTag::AlbumTitle,
         MyTag::AlbumArtist,
@@ -101,7 +104,9 @@ lazy_static! {
         MyTag::DiscNumber,
         MyTag::DiscTotal,
         MyTag::Comment,
-        MyTag::Copyright];
+        MyTag::Copyright,
+        MyTag::Lyrics,
+    ];
 
     pub static ref TEXT_TAGS: Vec<MyTag> = ALL_TAGS.iter()
                                 .filter(|e| e.is_text())

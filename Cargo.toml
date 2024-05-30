@@ -1,6 +1,6 @@
 [package]
 name = "music-tag-cli"
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Sam < shengw1127@gmail.com>"]
 edition = "2021"
 rust-version = "1.70"

@@ -62,7 +62,7 @@ impl SetSeqAction {
         get_next_value(self.seq_start, self.seq_step, self.seq_padding, seed)
     }
 
-    fn set_text_tag3<T>(&self, t: &mut T, tag: &MyTag, from_seq: &str) -> bool
+    fn set_text_tag<T>(&self, t: &mut T, tag: &MyTag, from_seq: &str) -> bool
         where T: ReadTag + WriteTag + ?Sized
     {
         match &self.modify_mode {
@@ -142,7 +142,7 @@ impl SeqAction for SetSeqAction {
         self.do_one_file_write(path, seq)
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -158,9 +158,9 @@ impl SeqWriteAction for SetSeqAction {
         self.dry_run
     }
 
-    fn set_tags_some(&self,
-                     t: &mut dyn ReadWriteTag,
-                     out: &Option<&str>) -> Result<(), Error> {
+    fn set_tags(&self,
+                t: &mut dyn ReadWriteTag,
+                out: &Option<&str>) -> Result<(), Error> {
         if self.tags.is_empty() {
             return Ok(());
         }
@@ -169,20 +169,21 @@ impl SeqWriteAction for SetSeqAction {
         let out = out.unwrap();
         for tag in &self.tags {
             let changed = match tag {
-                MyTag::Title => self.set_text_tag3(t, &MyTag::Title, out),
-                MyTag::Artist => self.set_text_tag3(t, &MyTag::Artist, out),
-                MyTag::AlbumTitle => self.set_text_tag3(t, &MyTag::AlbumTitle, out),
-                MyTag::Genre => self.set_text_tag3(t, &MyTag::Genre, out),
-                MyTag::Comment => self.set_text_tag3(t, &MyTag::Comment, out),
-                MyTag::AlbumArtist => self.set_text_tag3(t, &MyTag::AlbumArtist, out),
-                MyTag::Composer => self.set_text_tag3(t, &MyTag::Composer, out),
-                MyTag::Copyright => self.set_text_tag3(t, &MyTag::Copyright, out),
+                MyTag::Title
+                | MyTag::Artist
+                | MyTag::AlbumTitle
+                | MyTag::Genre
+                | MyTag::Comment
+                | MyTag::AlbumArtist
+                | MyTag::Composer
+                | MyTag::Copyright
+                | MyTag::Lyrics => self.set_text_tag(t, tag, out),
 
-                MyTag::Year => self.set_numeric_tag(t, &MyTag::Year, out),
-                MyTag::TrackNumber => self.set_numeric_tag(t, &MyTag::TrackNumber, out),
-                MyTag::TrackTotal => self.set_numeric_tag(t, &MyTag::TrackTotal, out),
-                MyTag::DiscNumber => self.set_numeric_tag(t, &MyTag::DiscNumber, out),
-                MyTag::DiscTotal => self.set_numeric_tag(t, &MyTag::DiscTotal, out),
+                MyTag::Year
+                | MyTag::TrackNumber
+                | MyTag::TrackTotal
+                | MyTag::DiscNumber
+                | MyTag::DiscTotal => self.set_numeric_tag(t, tag, out),
 
                 MyTag::Date => {
                     warn!("Unable set tag {} as Sequence, Ignore it.", tag);

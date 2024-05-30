@@ -7,10 +7,12 @@ use anyhow::Error;
 use log::{debug, error};
 
 use crate::model::{ALL_TAGS, MyTag};
-use crate::op::{check_file_not_exists, check_where, get_file_iterator, get_properties, get_tag, get_tags_from_args, get_where, ReadAction};
+use crate::op::{check_file_not_exists, check_where, get_file_iterator, get_properties, get_tags_value, get_tags_from_args, get_where, ReadAction};
 use crate::op::{Action, MyValue, MyValues, ReadTag, WalkAction};
 use crate::op::tag_impl::TagImpl;
 use crate::where_clause::WhereClause;
+
+const BUFFER_SIZE: usize = 4 * 1024;
 
 pub struct ExpAction {
     it: Box<dyn Iterator<Item=PathBuf>>,
@@ -68,13 +70,13 @@ fn get_values<'a, P>(path: P,
     where P: AsRef<Path>
 {
     let tag_impl = TagImpl::new(&path, true)?;
-    get_tags_some(&tag_impl, tags, where_clause, with_properties)
+    read_tags(&tag_impl, tags, where_clause, with_properties)
 }
 
-fn get_tags_some<'a>(t: &dyn ReadTag,
-                     tags: &'a Vec<MyTag>,
-                     where_clause: &Option<WhereClause>,
-                     with_properties: bool) -> Result<MyValues<'a>, Error> {
+fn read_tags<'a>(t: &dyn ReadTag,
+                 tags: &'a Vec<MyTag>,
+                 where_clause: &Option<WhereClause>,
+                 with_properties: bool) -> Result<MyValues<'a>, Error> {
     if tags.is_empty() {
         return Ok(MyValues { raw: None, properties: None });
     }
@@ -85,7 +87,7 @@ fn get_tags_some<'a>(t: &dyn ReadTag,
 
     let mut map: HashMap<&MyTag, MyValue> = HashMap::with_capacity(tags.len());
     for tag in tags.iter() {
-        let v = get_tag(t, tag);
+        let v = get_tags_value(t, tag);
         map.insert(tag, v);
     }
 
@@ -103,7 +105,7 @@ fn get_file_writer<P>(path: P) -> Result<Box<dyn Write>, Error>
 {
     check_file_not_exists(path.as_ref())?;
     let f = File::create(path.as_ref())?;
-    let writer = BufWriter::with_capacity(4 * 1024, f);
+    let writer = BufWriter::with_capacity(BUFFER_SIZE, f);
     Ok(Box::new(writer))
 }
 
@@ -149,7 +151,7 @@ impl WalkAction for ExpAction {
         &self.where_clause
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -160,7 +162,8 @@ impl ReadAction for ExpAction {
     }
 
     fn do_one_file_read(&mut self, path: &Path) -> Result<bool, Error> {
-        match self.get_content(path)? {
+        let v = get_values(path, &self.tags, &self.where_clause, self.with_properties)?;
+        match self.get_content(path, &v)? {
             Some(content) => {
                 debug!("content: {}", &content);
                 if !self.is_first {
@@ -172,8 +175,7 @@ impl ReadAction for ExpAction {
         }
     }
 
-    fn get_content(&self, path: &Path) -> Result<Option<String>, Error> {
-        let v = get_values(path, &self.tags, &self.where_clause, self.with_properties)?;
+    fn get_content(&self, path: &Path, v: &MyValues) -> Result<Option<String>, Error> {
         get_json(&v, path, &self.tags)
     }
 
@@ -299,7 +301,7 @@ fn escape(src: &str) -> String {
             '\r' => escaped += "\\r",
             '\t' => escaped += "\\t",
             '"' => escaped += "\\\"",
-            '\\' => escaped += "\\",
+            '\\' => escaped += "\\\\",
             c => escaped.push(c),
         }
     }

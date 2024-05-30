@@ -51,7 +51,7 @@ impl ReadTag for AudioTagWrapper<'_> {
 
                 MyTag::AlbumArtist => t.album_artist(),
                 MyTag::Composer => t.composer(),
-                MyTag::Copyright => {
+                MyTag::Copyright | MyTag::Lyrics => {
                     warn!("Not supported tag: {} in file {:?}", key, &self.file_name);
                     None
                 }
@@ -136,39 +136,39 @@ impl WriteTag for AudioTagWrapper<'_> {
                 MyTag::Title => {
                     t.remove_title();
                     t.set_title(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Artist => {
                     t.remove_artist();
                     t.set_artist(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::AlbumTitle => {
                     t.remove_album_title();
                     t.set_album_title(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Genre => {
                     t.remove_genre();
                     t.set_genre(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Comment => {
                     t.remove_comment();
                     t.set_comment(value.to_owned());
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::AlbumArtist => {
                     t.remove_album_artist();
                     t.set_album_artist(value);
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
                 MyTag::Composer => {
                     t.remove_composer();
                     t.set_composer(value.to_owned());
-                    info!("file {:?} set {}: {}", &self.file_name, key, value);
+                    info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                 }
-                MyTag::Copyright => {
+                MyTag::Copyright | MyTag::Lyrics => {
                     warn!("Not supported tag {} in file {:?}, could NOT set {}",
                         key, &self.file_name, value);
                 }
@@ -188,34 +188,98 @@ impl WriteTag for AudioTagWrapper<'_> {
                 MyTag::Year => {
                     if value <= MAX_NUMBER {
                         t.set_year(value as i32);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::TrackNumber => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_track_number(value as u16);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::TrackTotal => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_total_tracks(value as u16);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::DiscNumber => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_disc_number(value as u16);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                     }
                 }
                 MyTag::DiscTotal => {
                     if value >= MIN_NATURAL_NUMBER && value <= MAX_NUMBER {
                         t.set_total_discs(value as u16);
-                        info!("file {:?} set {}: {}", &self.file_name, key, value);
+                        info!("file {:?} set tag {}: {}", &self.file_name, key, value);
                     }
                 }
                 _ => (),
+            }
+        }
+    }
+
+    fn clear_tag(&mut self, key: &MyTag) {
+        let t = &mut self.tag;
+
+        match key {
+            MyTag::Title => {
+                t.remove_title();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::Artist => {
+                t.remove_artist();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::AlbumTitle => {
+                t.remove_album_title();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::Genre => {
+                t.remove_genre();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::Comment => {
+                t.remove_comment();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::AlbumArtist => {
+                t.remove_album_artist();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::Composer => {
+                t.remove_composer();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::Copyright | MyTag::Lyrics => {
+                warn!("Not supported tag {} in file {:?}, could NOT reset",
+                        key, &self.file_name);
+            }
+            MyTag::Date => {
+                warn!("Not supported tag {} in file {:?}, could NOT reset",
+                        key, &self.file_name);
+            }
+
+            MyTag::Year => {
+                t.remove_year();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::TrackNumber => {
+                t.remove_track_number();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::TrackTotal => {
+                t.remove_total_tracks();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::DiscNumber => {
+                t.remove_disc_number();
+                info!("file {:?} remove tag {}", &self.file_name, key);
+            }
+            MyTag::DiscTotal => {
+                t.remove_total_discs();
+                info!("file {:?} remove tag {}", &self.file_name, key);
             }
         }
     }

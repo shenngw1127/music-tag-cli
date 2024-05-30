@@ -15,11 +15,13 @@ pub struct App {
 #[command(author, version, about, long_about = None)]
 pub enum Command {
     View(ViewArgs),
+    Clear(ClearArgs),
     ConvEn(ConvEnArgs),
     ConvUtf8(ConvUtf8Args),
     ConvZh(ConvZhArgs),
     Exp(ExpArgs),
     Imp(ImpArgs),
+    Lrc(LrcArgs),
     ModNum(ModNumArgs),
     ModTextConst(ModTexConstArgs),
     ModTextRegex(ModTextRegexArgs),
@@ -27,6 +29,33 @@ pub enum Command {
     SetName(SetNameArgs),
     SetSeq(SetSeqArgs),
     Ren(RenArgs),
+}
+
+#[derive(Debug, Args)]
+#[command(arg_required_else_help = true, long_about = "Clear tags.")]
+pub struct ClearArgs {
+    #[arg(short, long, value_delimiter = ',')]
+    #[arg(help = "Process specified tags, if not set, it will NOT process any tag.")]
+    pub tags: Vec<MyTag>,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
+    #[arg(long, default_value_t = false)]
+    #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]
+    pub dry_run: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    #[arg(help = "Only show error in console, if it was set as true.")]
+    pub quiet: bool,
+
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The path of your music file(s). It must point to a file or directory path.")]
+    pub directory: PathBuf,
 }
 
 #[derive(Debug, Args)]
@@ -321,6 +350,45 @@ pub struct ImpArgs {
 }
 
 #[derive(Debug, Args)]
+#[command(arg_required_else_help = true, long_about = "Import / Export lyric file for tags.")]
+pub struct LrcArgs {
+    #[arg(short, long, default_value = "utf-8")]
+    #[arg(help = "Original encoding. eg. GBK Big5 shift_jis Windows-1252 ISO-8859-15 ... \
+    (ref: https://docs.rs/encoding_rs/latest/encoding_rs/)")]
+    pub encoding_name: String,
+
+    #[arg(long, default_value_t = false)]
+    #[arg(help = "Only show how to modify tags, but do NOT write any file, if it was set as true.")]
+    pub dry_run: bool,
+
+    #[arg(short, long, default_value_t = false)]
+    #[arg(help = "Only show error in console, if it was set as true.")]
+    pub quiet: bool,
+
+    #[arg(long = "where")]
+    #[arg(help = "`Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` \
+    logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is \
+    supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
+    Note: `'` should be escaped as `''` like in SQL string.")]
+    pub where_clause: Option<String>,
+
+    #[arg(short, long)]
+    #[arg(help = "Import will save `.lrc` file content to tag `lyrics`. \
+    Export will export `lyrics` to `.lrc` file.")]
+    pub direction: LrcDirection,
+
+    #[arg(value_hint = clap::ValueHint::FilePath)]
+    #[arg(help = "The path of your music file(s). It must point to a file or directory path.")]
+    pub directory: PathBuf,
+}
+
+#[derive(Debug, Copy, Clone, ValueEnum, Eq, Hash, PartialEq)]
+pub enum LrcDirection {
+    Export,
+    Import,
+}
+
+#[derive(Debug, Args)]
 #[command(arg_required_else_help = true, long_about = "Rename file with tags.")]
 pub struct RenArgs {
     #[arg(long, default_value_t = false)]
@@ -514,6 +582,7 @@ pub enum TextTagArgs {
     Composer,
     Comment,
     Copyright,
+    Lyrics,
 }
 
 impl From<TextTagArgs> for MyTag {
@@ -527,6 +596,7 @@ impl From<TextTagArgs> for MyTag {
             TextTagArgs::Composer => MyTag::Composer,
             TextTagArgs::Comment => MyTag::Comment,
             TextTagArgs::Copyright => MyTag::Copyright,
+            TextTagArgs::Lyrics => MyTag::Lyrics,
         }
     }
 }

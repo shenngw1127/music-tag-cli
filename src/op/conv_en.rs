@@ -4,7 +4,7 @@ use anyhow::Error;
 use titlecase::titlecase;
 
 use crate::model::{ConvEnProfile, MyTag, TEXT_TAGS};
-use crate::op::{get_file_iterator, get_tags_from_args, get_where, string_to_option};
+use crate::op::{get_file_iterator, get_tags_from_args, get_where, string_to_option, WriteTextForCurrentAction};
 use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
@@ -57,7 +57,7 @@ impl WalkAction for ConvEnAction {
         &self.where_clause
     }
 
-    fn get_tags(&self) -> &Vec<MyTag> {
+    fn tags(&self) -> &Vec<MyTag> {
         &self.tags
     }
 }
@@ -67,12 +67,18 @@ impl WriteAction for ConvEnAction {
         self.dry_run
     }
 
-    fn set_tags_some(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
-        self.set_tags_some_impl(t)
+    fn write_tags(&self, t: &mut dyn ReadWriteTag) -> Result<bool, Error> {
+        self.write_tags_impl(t)
     }
 }
 
 impl WriteTextAction for ConvEnAction {
+    fn set_text_tag(&self, t: &mut dyn ReadWriteTag, tag: &MyTag) -> bool {
+        self.set_text_tag_impl(t, tag)
+    }
+}
+
+impl WriteTextForCurrentAction for ConvEnAction {
     fn get_new_text(&self, current: &Option<String>) -> Option<String> {
         if let Some(curr) = current {
             let new_v = match &self.profile {
@@ -87,4 +93,3 @@ impl WriteTextAction for ConvEnAction {
         }
     }
 }
-
