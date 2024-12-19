@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Error;
 
 use crate::model::{ALL_TAGS, MyTag};
-use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, MyValues, ReadAction, WalkAction};
+use crate::op::{get_file_iterator, get_tags_from_args, get_where};
+use crate::op::{Action, MyValues, ReadAction, WalkAction};
 use crate::where_clause::WhereClause;
 
 pub struct ViewAction {

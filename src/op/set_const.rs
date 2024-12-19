@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Error;
 
 use crate::model::{ConstValue, EMPTY_TAGS, ModifyMode, MyTag, SetWhen};
-use crate::op::{check_numeric_date_tags_must_be_overwrite, check_tags_type_value_type, check_value_is_ok, get_file_iterator, get_tags_from_args, get_where};
+use crate::op::{check_numeric_date_tags_must_be_overwrite, check_tags_type_value_type,
+                check_value_is_ok, get_file_iterator, get_tags_from_args, get_where};
 use crate::op::{Action, WalkAction, WriteAction, WriteAllAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;

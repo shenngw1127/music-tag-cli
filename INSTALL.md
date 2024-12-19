@@ -1,8 +1,8 @@
-# Music Tag Cli Instatll
+# Music Tag Cli Install
 
 [[_TOC_]]
 
-## Prereqirement
+## Pre requirement
 
 - OS: Unix/Linux/Mac/Windows
 - taglib (it must be compiled install, so you need)
@@ -52,7 +52,11 @@ Ubuntu
 # remove old version
 sudo apt-get remove -y cmake
 
-# visist https://apt.kitware.com/ add key and repo, then install from kitware
+# Obtain a copy of kitware's signing key.
+wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+# Add kitware's repository to your sources list
+sudo apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
+# Install cmake
 sudo apt-get update
 sudo apt-get install -y cmake
 ```
@@ -79,7 +83,7 @@ sudo apt-get install -y libcppunit-dev
 
 Pleas checkout the master branch and see [here](https://github.com/taglib/taglib/blob/master/INSTALL.md).
 
-### Preparme compile Music-Tag-Cli
+### Prepare compile Music-Tag-Cli
 
 Install tools for compiling
 
@@ -113,11 +117,11 @@ Ubuntu
 sudo apt-get install -y opencc
 ```
 
-If you want get a static linked version, maybe just compile it by your self.
+If you want to get static linked version, maybe just compile it by your self.
 
 ### Compile Music-Tag-Cli
 
-#### Vesion match
+#### Version match
 
 | music-tag-cli | taglib-rust |                    taglib                     |
 |:-------------:|:-----------:|:---------------------------------------------:|
@@ -125,6 +129,7 @@ If you want get a static linked version, maybe just compile it by your self.
 |     1.0.1     |    2.0.1    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
 |     1.0.2     |    2.0.1    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
 |     1.0.3     |    2.0.2    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
+|     1.0.4     |    2.0.2    | SHA1 20cec27ac0d9367d98cca0c7b07009f4587e1c6d |
 
 #### Set environment
 
@@ -138,7 +143,7 @@ export OPENCC_LIBS="opencc:marisa"
 If you wish static linked version, you must read details.
 
 1. Check the parameters for [installing taglib](https://github.com/taglib/taglib/blob/master/INSTALL.md).
-2. Check openCC was installed with static linked lib mode. If not, you must compile it by your self. (Note: it is depending on python-2.7)
+2. Check openCC was installed with static linked lib mode. If not, you must compile it by your self. (Note: it depends on python-2.7)
 3. Please see [here](https://github.com/magiclen/opencc-rust), and set environment as
 
     ```shell
@@ -181,7 +186,7 @@ Please select one method below:
 
 #### Compile
 
-For comiling, just use flowing command.
+For compiling, just use flowing command.
 
 ```shell
 # Release
@@ -192,7 +197,7 @@ cargo build
 
 ## Windows
 
-If you use Windows, you can download the binary from below internet drive directly. The compiled version was tested on `Windows 7 SP1 x86_64`, 8, 8.1, 10 and 11 should be fine. You may also distribute this program free,  please retain the license information.
+If you use Windows OS, you can download the binary file from below internet drive directly. The compiled version was tested on `Windows 7 SP1 x86_64`, 8, 8.1, 10 and 11 should be fine. You may also distribute this program free,  please retain the license information.
 
-- Download from [Googe Drive](https://drive.google.com/drive/folders/1bil1Kk-gBq7naRsaA4H8bHkvtJ_xYv7d?usp=sharing)
+- Download from [Google Drive](https://drive.google.com/drive/folders/1bil1Kk-gBq7naRsaA4H8bHkvtJ_xYv7d?usp=sharing)
 - Download from [Baidu pan](https://pan.baidu.com/s/1sMSg9QTgC5QcoCsqaac4dQ?pwd=3crt)

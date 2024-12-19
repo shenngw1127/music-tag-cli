@@ -126,6 +126,13 @@ lazy_static! {
     pub static ref EMPTY_TAGS: Vec<MyTag> = vec![];
 }
 
+#[derive(Copy, Clone, PartialEq, ValueEnum, Debug)]
+pub enum FilenameExistPolicy {
+    Skip,
+    KeepBoth,
+    Overwrite,
+}
+
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
 pub enum ConvEnProfile {
     Lowercase,

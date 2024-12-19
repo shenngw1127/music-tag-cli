@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Error};
 
 use crate::model::{AddDirection, Direction, MyTag, QueryResultPosition, TEXT_TAGS, TextConst};
-use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
+use crate::op::{get_file_iterator, get_tags_from_args, get_where};
+use crate::op::{Action, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::util::str::{get_append_from_end, get_insert_from_beginning, get_replaced_any};
 use crate::util::str::{get_remove_from_beginning, get_remove_from_end};

@@ -1,5 +1,11 @@
 # Change Log [中文简体](CHANGELOG.zh-cn.md) | [中文繁體](CHANGELOG.zh-tw.md)
 
+## 1.0.4
+
+- (doc) spell check for markdown
+- (feat) `lrc -d export`, `exp` and `ren` add `--filename-exist-policy` (short as `-x`) option, could be `skip`(default), `keepBoth` or `overwrite`
+- (fix) add `lyrics` in `WHERE` field 
+
 ## 1.0.3
 
 - (doc) add compatible list with taglib-rust

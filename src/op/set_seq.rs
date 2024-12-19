@@ -6,7 +6,8 @@ use anyhow::Error;
 use log::{error, warn};
 
 use crate::model::{EMPTY_TAGS, ModifyMode, MyTag};
-use crate::op::{check_numeric_date_tags_must_be_overwrite, get_dir_iterator, get_tags_from_args, MAX_NUMBER, sorted_filtered_files};
+use crate::op::{check_numeric_date_tags_must_be_overwrite, get_dir_iterator, get_tags_from_args,
+                MAX_NUMBER, sorted_filtered_files};
 use crate::op::{Action, SeqAction};
 use crate::op::SeqWriteAction;
 use crate::op::tag_impl::{ReadTag, ReadWriteTag, WriteTag};

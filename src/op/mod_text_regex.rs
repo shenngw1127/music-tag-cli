@@ -5,7 +5,8 @@ use log::debug;
 use regex::{Regex, RegexBuilder};
 
 use crate::model::{MyTag, TEXT_TAGS};
-use crate::op::{Action, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
+use crate::op::{get_file_iterator, get_tags_from_args, get_where};
+use crate::op::{Action, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 

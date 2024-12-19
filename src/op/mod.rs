@@ -1,6 +1,7 @@
 extern crate lazy_static;
 
 use std::{fs, iter};
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -12,8 +13,9 @@ use itertools::Itertools;
 use log::{debug, error, warn};
 use walkdir::WalkDir;
 
-use crate::model::{ConstValue, ModifyMode, MyTag};
+use crate::model::{ConstValue, FilenameExistPolicy, ModifyMode, MyTag};
 use crate::op::tag_impl::ReadWriteTag;
+use crate::util::path::get_dup_path;
 use crate::where_clause::WhereClause;
 
 pub use self::clear::ClearAction;
@@ -665,16 +667,6 @@ fn check_value_is_ok(tags: &[MyTag], value: &ConstValue) -> Result<(), Error> {
     }
 }
 
-fn check_file_not_exists<P>(path: P) -> Result<(), Error>
-    where P: AsRef<Path>
-{
-    let path = path.as_ref();
-    if path.exists() {
-        return Err(anyhow!("{:?} exists, could NOT process.", path));
-    }
-    Ok(())
-}
-
 fn err_param_exceed_boundary(param_name: &str) -> Result<(), Error> {
     Err(anyhow!("Parameter: {} exceed the boundary.", param_name))
 }
@@ -710,4 +702,29 @@ fn check_encoding_not_utf8(e: &'static EncodingRs) -> Result<(), Error> {
 fn is_utf8(e: &'static EncodingRs) -> bool {
     let s = e.name().to_lowercase();
     s.eq("utf8") || s.eq("utf-8")
+}
+
+fn get_new_path(path: &Path,
+                filename_exist_policy: FilenameExistPolicy) -> Option<Cow<Path>> {
+    match filename_exist_policy {
+        FilenameExistPolicy::Skip => {
+            if path.exists() {
+                error!("file: {:?} exists. skipping...", path);
+                None
+            } else {
+                Some(Cow::Borrowed(path))
+            }
+        }
+        FilenameExistPolicy::KeepBoth =>
+            get_dup_path(path).map_or_else(
+                || {
+                    error!("file: {:?} exists. failed to get the new file name.", path);
+                    None
+                },
+                |p| Some(p),
+            ),
+        FilenameExistPolicy::Overwrite => {
+            Some(Cow::Borrowed(path))
+        }
+    }
 }

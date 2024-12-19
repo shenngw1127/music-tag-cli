@@ -322,6 +322,8 @@ mod test {
         fn get_text_tag(&self, key: &MyTag) -> Option<String> {
             match key {
                 MyTag::Composer => Some("Lee's".to_owned()),
+                MyTag::Copyright => Some("Disney".to_owned()),
+                MyTag::Lyrics => Some("".to_owned()),
                 _ => Some(format!("{}{}", key, self.count)),
             }
         }
@@ -341,6 +343,24 @@ mod test {
         fn get_property(&self, _key: &str) -> Result<Vec<String>, Error> {
             todo!()
         }
+    }
+
+    #[test]
+    fn test_where_lyrics() {
+        let path = PathBuf::from("mock_file");
+        let mock_empty_lyrics = MockTagImpl { path: path.as_path(), count: 5 };
+
+        // =
+        let w = WhereClause::new("lyrics=''").expect("Error");
+        assert!(w.check(&mock_empty_lyrics).unwrap());
+        let w = WhereClause::new("lyrics='Some Lyrics'").expect("Error");
+        assert!(!w.check(&mock_empty_lyrics).unwrap());
+
+        // != <>
+        let w = WhereClause::new("lyrics<>''").expect("Error");
+        assert!(!w.check(&mock_empty_lyrics).unwrap());
+        let w = WhereClause::new("lyrics!=''").expect("Error");
+        assert!(!w.check(&mock_empty_lyrics).unwrap());
     }
 
     #[test]

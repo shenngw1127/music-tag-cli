@@ -12,7 +12,7 @@
 (?i)and "OP_AND"
 (?i)or "OP_OR"
 year|track-number|track-total|disc-number|disc-number "NUM_TAG"
-title|artist|album|album-artist|comment|genre|composer|copyright|date "TEXT_TAG"
+title|artist|album|album-artist|comment|genre|composer|copyright|lyrics|date "TEXT_TAG"
 [0-9]+ "NUM_VALUE"
 '(?:[^\']|(?:'')*)*' "TEXT_VALUE"
 [\t ]+ ;

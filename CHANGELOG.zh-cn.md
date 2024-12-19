@@ -1,10 +1,16 @@
 # 更新日志 [English](CHANGELOG.md) | [中文繁體](CHANGELOG.zh-tw.md)
 
+## 1.0.4
+
+- (文档) 修正拼写错误
+- (功能) `lrc -d export`、`exp`和`ren`命令增加`--filename-exist-policy`选项（短名为`-x`），可以是`skip`（默认）, `keep-both`或`overwrite`
+- (修复) `WHERE`表达式可以使用`lyrics`字段
+
 ## 1.0.3
 
 - (文档) 增加`taglib-rust`的版本兼容性列表
-- (功能) 增加命令 `clear`
-- (功能) 增加命令 `lrc`
+- (功能) 增加命令`clear`
+- (功能) 增加命令`lrc`
 - (功能) 增加文本标签`lyrics`
 - (修复) `exp`导出JSON文件时没有转义`\`
 

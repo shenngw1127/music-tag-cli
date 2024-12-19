@@ -4,7 +4,7 @@ This is a simple tool for editing music tags in command line. You can connect to
 
 ## Install
 
-Please read the [install guide](INSTALL.md). You can directly download the binary exe if you only wish run it on Windows platform.
+Please read the [installation guide](INSTALL.md). You can directly download the binary exe if you only wish run it on Windows platform.
 
 ## Tag list
 
@@ -32,7 +32,7 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 
 ### Subcommand
 
-| Sumcommand     | Description                                                                                   |
+| Subcommand     | Description                                                                                   |
 |----------------|-----------------------------------------------------------------------------------------------|
 | view           | View tags                                                                                     |
 | clear          | Remove value of tags                                                                          |
@@ -53,7 +53,7 @@ Please read the [install guide](INSTALL.md). You can directly download the binar
 
 ### EXAMPLES
 
-Note: All file path in examples is **Unix/Linux/Mac** mode, if you use **Windows** series, please use path in Windows format. e.g. "C:\some-path". Please make sure all characters must be in UNICODE character set. It must surrund by `"` if it contains space character.
+Note: All file path in examples is **Unix/Linux/Mac** mode, if you use **Windows** series, please use path in Windows format. e.g. "C:\some-path". Please make sure all characters must be in UNICODE character set. It must surround by `"` if it contains space character.
 
 #### General Options
 
@@ -71,7 +71,7 @@ This option are available for all commands **except** `imp`, `set-seq`.
         `Where` clause for prediction. It is like SQL, supported `NOT` `AND` `OR` logic operators, `=` `<` `<=` `>` `>=` `!=` `<>` comparison operators, `LIKE` also is supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. Note: `'` should be escaped as `''` like in SQL string.
 ```
 
-Note: `=` `!=` `<>` for text tag is case sensitive.
+Note: `=` `!=` `<>` for text tag is case-sensitive.
 
 for example:
 
@@ -125,7 +125,7 @@ music-tag-cli conv-en -p uppercase -t copyright "~/Music/Music/dir2"
 
 Convert text tags to UTF-8 encoding.
 
-**Note**: Please use this function with caution. It is the best to check whether the result of using `--dry-run` is correct at first, because some encodingconversion was **irreversible**.
+**Note**: Please use this function with caution. It is the best to check whether the result of using `--dry-run` is correct at first, because some encoding conversion was **irreversible**.
 
 ```shell
 # Convert all text tag from Windows-1252 to UTF-8 encoding
@@ -154,7 +154,7 @@ Export tags to file in JSON format.
 Program will exit if output file exists.
 
 ```shell
-# Expoprt basic
+# Export basic
 music-tag-cli exp -o "../backup/all.json" "~/Music/Music"
 
 # Export with properties
@@ -165,7 +165,7 @@ music-tag-cli exp -o "../backup/all.json" --with-properties "~/Music/Music"
 
 Import tags from JSON file. (`props` was NOT processed.)
 
-It will break when first JSON element valid fail, but all before it will be saved if does NOT set `--dry-run` option.
+It will break when first JSON element validate fail, but all before it will be saved if it does NOT set `--dry-run` option.
 
 ```shell
 # Import basic
@@ -190,13 +190,13 @@ music-tag-cli lrc -d export "~/Music/Music/"
 # Export lyrics using Windows-1252 encoding
 music-tag-cli lrc -d export -e Windows-1252 "~/Music/Music/"
 
-# Import lyrics, using Windwos-1252 encoding
+# Import lyrics, using Windows-1252 encoding
 music-tag-cli lrc -d import -e Windows-1252 -b "~/Music/Music"
 ```
 
 #### mod-num
   
-Modify numeric tags by increase / decrease an integer, and must be great than 0. It will **NOT** affect empty tags.
+Modify numeric tags by increase / decrease an integer, and it must be greater than 0. It will **NOT** affect empty tags.
 
 ```shell
 # each track-number plus 1
@@ -213,7 +213,7 @@ Modify text tags by add / replace / remove a Constant value, also could truncate
 ##### add
 
 ```shell
-# comment will at first 2 charcters insert ` baisc`, e.g. orininal: "1. from url", new: "1. basic from url"
+# comment will at first 2 characters insert ` basic`, e.g. original: "1. from url", new: "1. basic from url"
 music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" add -o 2 -a " basic"
 ```
 
@@ -240,7 +240,7 @@ music-tag-cli mod-text-const -t comment "~/Music/Music/dir2" truncate -l 20
 
 #### mod-text-regex
 
-Modify text tags by REGEX replace, support group capture, and global case sensitive/insensitive.
+Modify text tags by REGEX replace, support group capture, and global case-sensitive / case-insensitive.
 
 Note: Lookahead / Lookbehind assertion is **NOT** supported!
 
@@ -281,15 +281,15 @@ music-tag-cli set-name --template "\${track-number} - \${title} - \${artist}" "~
 
 Set a sequence for some tag in files, sorted by file name (each folder reset the sequence). Some arguments:
 
-- start: 1 (defaut)
-- step: 1 (defaut)
-- padding: 2 (defaut)
+- start: 1 (default)
+- step: 1 (default)
+- padding: 2 (default)
 
 ```shell
 # Set numeric track-number as sequence
 music-tag-cli set-seq -t track-number "~/Music/Music/John Denver"
 
-# Append title to sequece
+# Append title to sequence
 music-tag-cli set-seq -t title -m append "~/Music/Music/John Denver"
 ```
 
@@ -336,7 +336,7 @@ Log files location: `./logs`.
 
 ### Configuration file
 
-Location: `~/.music-tag-cli.toml`. Deault value as below:
+Location: `~/.music-tag-cli.toml`. Default value as below:
 
 ```toml
 # `trace` `debug` `info` `warn` `error`
@@ -347,7 +347,7 @@ tag_lib="taglib"
 
 Note:
 
-`audiotags` is an carate in Rust, but it has no enough function for this application now. It is only experimental.
+`audiotags` is a crate in Rust, but it has no enough function for this application now. It is only experimental.
 
 ## License
 

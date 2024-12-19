@@ -7,7 +7,9 @@ use encoding_rs::Encoding as EncodingRs;
 use log::error;
 
 use crate::model::{MyTag, TEXT_TAGS};
-use crate::op::{Action, check_encoding_not_utf8, get_encoding, get_file_iterator, get_tags_from_args, get_where, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
+use crate::op::{check_encoding_not_utf8, get_encoding, get_file_iterator, get_tags_from_args,
+                get_where};
+use crate::op::{Action, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 

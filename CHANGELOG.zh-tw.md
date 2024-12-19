@@ -1,5 +1,11 @@
 # 更新日誌 [English](CHANGELOG.md) | [中文简体](CHANGELOG.zh-cn.md)
 
+## 1.0.4
+
+- (檔案) 修正拼寫錯誤
+- (功能) `lrc -d export`、`exp`和`ren`命令增加`--filename-exist-policy`選項（短名為`-x`），可以是`skip`（預設）, `keep-both`或`overwrite`
+- (修復) `WHERE`表示式可以使用`lyrics`欄位
+
 ## 1.0.3
 
 - (檔案) 增加`taglib-rust`的版本相容性列表

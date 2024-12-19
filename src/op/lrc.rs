@@ -6,9 +6,9 @@ use anyhow::{anyhow, Error};
 use encoding_rs::Encoding as EncodingRs;
 use log::{debug, error, info};
 
-use crate::model::MyTag;
-use crate::op::{get_encoding, get_file_iterator, get_where, is_utf8, MyValues, ReadAction};
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::model::{FilenameExistPolicy, MyTag};
+use crate::op::{get_encoding, get_file_iterator, get_new_path, get_where, is_utf8};
+use crate::op::{Action, MyValues, ReadAction, WalkAction, WriteAction, WriteTextAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 
@@ -45,35 +45,35 @@ impl LrcImpAction {
     }
 
     fn get_new_text(&self, t: &dyn ReadWriteTag) -> Option<String> {
-        let mut path = PathBuf::from(t.get_path());
-        path.set_extension("lrc");
+        let mut lrc_path = PathBuf::from(t.get_path());
+        lrc_path.set_extension("lrc");
 
-        if !path.exists() || !path.is_file() {
-            error!("path {:?} not exists or not a file!", &path);
+        if !lrc_path.exists() || !lrc_path.is_file() {
+            error!("path {:?} not exists or not a file!", &lrc_path);
             return None;
         }
 
-        if let Some(m) = path.metadata().ok() {
+        if let Some(m) = lrc_path.metadata().ok() {
             if m.len() > MAX_FILE_LENGTH {
-                error!("file {:?} is too big!", &path);
+                error!("file {:?} is too big!", &lrc_path);
                 return None;
             }
 
-            match File::open(&path) {
+            match File::open(&lrc_path) {
                 Ok(mut input_file) => {
                     if is_utf8(self.encoding) {
-                        read_file(&mut input_file, &path)
+                        read_file(&mut input_file, &lrc_path)
                     } else {
-                        read_file_decode(&mut input_file, &path, self.encoding)
+                        read_file_decode(&mut input_file, &lrc_path, self.encoding)
                     }
                 }
                 Err(e) => {
-                    error!("read file {:?} error {:?}", & path, e);
+                    error!("read file {:?} error {:?}", & lrc_path, e);
                     None
                 }
             }
         } else {
-            error!("could NOT found path {:?} metadata!", & path);
+            error!("could NOT found path {:?} metadata!", & lrc_path);
             None
         }
     }
@@ -199,15 +199,16 @@ pub struct LrcExpAction {
     tags: Vec<MyTag>,
     dry_run: bool,
     where_clause: Option<WhereClause>,
+    filename_exist_policy: FilenameExistPolicy,
 }
 
 impl LrcExpAction {
     pub fn new<P>(dir: P,
                   encoding_name: &str,
                   dry_run: bool,
-                  where_string: &Option<String>) -> Result<Self, Error>
-        where P: AsRef<Path>
-    {
+                  where_string: &Option<String>,
+                  filename_exist_policy: FilenameExistPolicy) -> Result<Self, Error>
+        where P: AsRef<Path> {
         let encoding = get_encoding(encoding_name)?;
         let it = get_file_iterator(dir.as_ref())?;
         let tags = vec![MyTag::Lyrics];
@@ -218,6 +219,7 @@ impl LrcExpAction {
             tags,
             dry_run,
             where_clause,
+            filename_exist_policy,
         })
     }
 }
@@ -256,23 +258,28 @@ impl ReadAction for LrcExpAction {
     }
 
     fn do_output(&mut self, path: &Path, content: &str) -> Result<bool, Error> {
-        let mut new_path = PathBuf::from(path);
-        new_path.set_extension("lrc");
-        if new_path.exists() {
-            error!("file: {:?} exists.", path);
-            return Ok(false);
-        }
+        let mut lrc_path = PathBuf::from(path);
+        lrc_path.set_extension("lrc");
+
+        let lrc_path = match get_new_path(&lrc_path, self.filename_exist_policy) {
+            None => {
+                error!("file: {:?} exists. filename_exist_policy: {:?}",
+                    path, self.filename_exist_policy);
+                return Ok(false);
+            }
+            Some(path) => path
+        };
 
         if is_utf8(self.encoding) {
-            write_file(&new_path, content.as_bytes(), self.dry_run)?;
+            write_file(lrc_path, content.as_bytes(), self.dry_run)?;
             Ok(true)
         } else {
-            let (new_v, .., had_errors) = self.encoding.encode(content);
+            let (new_content, .., had_errors) = self.encoding.encode(content);
             if had_errors {
                 error!("encode error. original value: {}.", &content);
                 Ok(false)
             } else {
-                write_file(&new_path, new_v.as_ref(), self.dry_run)?;
+                write_file(lrc_path, new_content.as_ref(), self.dry_run)?;
                 Ok(true)
             }
         }

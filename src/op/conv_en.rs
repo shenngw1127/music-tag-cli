@@ -4,8 +4,8 @@ use anyhow::Error;
 use titlecase::titlecase;
 
 use crate::model::{ConvEnProfile, MyTag, TEXT_TAGS};
-use crate::op::{get_file_iterator, get_tags_from_args, get_where, string_to_option, WriteTextForCurrentAction};
-use crate::op::{Action, WalkAction, WriteAction, WriteTextAction};
+use crate::op::{get_file_iterator, get_tags_from_args, get_where, string_to_option};
+use crate::op::{Action, WalkAction, WriteAction, WriteTextAction, WriteTextForCurrentAction};
 use crate::op::tag_impl::ReadWriteTag;
 use crate::where_clause::WhereClause;
 

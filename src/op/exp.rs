@@ -3,12 +3,13 @@ use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use anyhow::Error;
+use anyhow::{anyhow, Error};
 use log::{debug, error};
 
-use crate::model::{ALL_TAGS, MyTag};
-use crate::op::{check_file_not_exists, check_where, get_file_iterator, get_properties, get_tags_value, get_tags_from_args, get_where, ReadAction};
-use crate::op::{Action, MyValue, MyValues, ReadTag, WalkAction};
+use crate::model::{ALL_TAGS, FilenameExistPolicy, MyTag};
+use crate::op::{check_where, get_file_iterator, get_new_path, get_properties, get_tags_from_args,
+                get_tags_value, get_where};
+use crate::op::{Action, MyValue, MyValues, ReadAction, ReadTag, WalkAction};
 use crate::op::tag_impl::TagImpl;
 use crate::where_clause::WhereClause;
 
@@ -29,11 +30,12 @@ impl ExpAction {
                                tags: &[MyTag],
                                where_string: &Option<String>,
                                with_properties: bool,
-                               output_file: P) -> Result<Self, Error> {
+                               output_file: P,
+                               filename_exist_policy: FilenameExistPolicy) -> Result<Self, Error> {
         let it = get_file_iterator(dir.as_ref())?;
         let tags = get_tags_from_args(tags, &ALL_TAGS)?;
         let where_clause = get_where(where_string)?;
-        let writer = get_file_writer(output_file)?;
+        let writer = get_file_writer(output_file, filename_exist_policy)?;
         Ok(Self {
             it,
             writer,
@@ -100,13 +102,18 @@ fn read_tags<'a>(t: &dyn ReadTag,
     Ok(MyValues { raw: Some(map), properties })
 }
 
-fn get_file_writer<P>(path: P) -> Result<Box<dyn Write>, Error>
-    where P: AsRef<Path>
-{
-    check_file_not_exists(path.as_ref())?;
-    let f = File::create(path.as_ref())?;
-    let writer = BufWriter::with_capacity(BUFFER_SIZE, f);
-    Ok(Box::new(writer))
+fn get_file_writer<P>(path: P,
+                      filename_exist_policy: FilenameExistPolicy) -> Result<Box<dyn Write>, Error>
+    where P: AsRef<Path> {
+    let path = path.as_ref();
+    if let Some(path) = get_new_path(path, filename_exist_policy) {
+        let f = File::create(path)?;
+        let writer = BufWriter::with_capacity(BUFFER_SIZE, f);
+        Ok(Box::new(writer))
+    } else {
+        return Err(anyhow!("{:?} exists, could NOT process. filename_exist_policy: {:?}",
+            path, filename_exist_policy));
+    }
 }
 
 impl Action for ExpAction {

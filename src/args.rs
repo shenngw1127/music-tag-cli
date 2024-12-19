@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 
-use crate::model::{AddDirection, CalcMethod, ConstValue, ConvEnProfile, ConvZhProfile, Direction, ModifyMode, MyTag, QueryResultPosition, SetWhen, TextConst};
+use crate::model::{AddDirection, CalcMethod, ConstValue, ConvEnProfile, ConvZhProfile, Direction,
+                   FilenameExistPolicy, ModifyMode, MyTag, QueryResultPosition, SetWhen, TextConst};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -75,6 +76,10 @@ pub struct ExpArgs {
     supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
     Note: `'` should be escaped as `''` like in SQL string.")]
     pub where_clause: Option<String>,
+
+    #[arg(short = 'x', long, value_enum, default_value_t = FilenameExistPolicy::Skip)]
+    #[arg(help = "If output file exist, how to process.")]
+    pub filename_exist_policy: FilenameExistPolicy,
 
     #[arg(short, long)]
     #[arg(value_hint = clap::ValueHint::FilePath)]
@@ -372,6 +377,10 @@ pub struct LrcArgs {
     Note: `'` should be escaped as `''` like in SQL string.")]
     pub where_clause: Option<String>,
 
+    #[arg(short = 'x', long, value_enum, default_value_t = FilenameExistPolicy::Skip)]
+    #[arg(help = "If output file exist, how to process. (Only worked in `-d export` mode.)")]
+    pub filename_exist_policy: FilenameExistPolicy,
+
     #[arg(short, long)]
     #[arg(help = "Import will save `.lrc` file content to tag `lyrics`. \
     Export will export `lyrics` to `.lrc` file.")]
@@ -405,6 +414,10 @@ pub struct RenArgs {
     supported with `%` `_` wildcards, `ILIKE` is same but case insensitive. \
     Note: `'` should be escaped as `''` like in SQL string.")]
     pub where_clause: Option<String>,
+
+    #[arg(short = 'x', long, value_enum, default_value_t = FilenameExistPolicy::Skip)]
+    #[arg(help = "If output file exist, how to process.")]
+    pub filename_exist_policy: FilenameExistPolicy,
 
     #[arg(long)]
     #[arg(help = "Template for new filename like \"${track-number} - ${title} - ${artist}\".")]

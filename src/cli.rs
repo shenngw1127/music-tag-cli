@@ -107,9 +107,9 @@ fn get_action(logger: &mut LoggerHandle) -> Result<Box<dyn Action>, Error> {
                 logger.adapt_duplication_to_stdout(Duplicate::Error)?;
             }
             Box::new(ClearAction::new(&args.directory,
-                                       args.dry_run,
-                                       &args.tags,
-                                       &args.where_clause)?)
+                                      args.dry_run,
+                                      &args.tags,
+                                      &args.where_clause)?)
         }
         Command::ConvEn(args) => {
             debug!("args: {:?}", args);
@@ -201,7 +201,8 @@ fn get_action(logger: &mut LoggerHandle) -> Result<Box<dyn Action>, Error> {
             Box::new(RenAction::new(&args.directory,
                                     args.dry_run,
                                     &args.where_clause,
-                                    &args.template)?)
+                                    &args.template,
+                                    args.filename_exist_policy)?)
         }
         Command::Imp(args) => {
             debug!("args: {:?}", args);
@@ -221,7 +222,8 @@ fn get_action(logger: &mut LoggerHandle) -> Result<Box<dyn Action>, Error> {
                 LrcDirection::Export => Box::new(LrcExpAction::new(&args.directory,
                                                                    &args.encoding_name,
                                                                    args.dry_run,
-                                                                   &args.where_clause)?),
+                                                                   &args.where_clause,
+                                                                   args.filename_exist_policy)?),
                 LrcDirection::Import => Box::new(LrcImpAction::new(&args.directory,
                                                                    &args.encoding_name,
                                                                    args.dry_run,
@@ -273,7 +275,8 @@ fn get_action(logger: &mut LoggerHandle) -> Result<Box<dyn Action>, Error> {
                                     &args.tags,
                                     &args.where_clause,
                                     args.with_properties,
-                                    &args.output_file)?)
+                                    &args.output_file,
+                                    args.filename_exist_policy)?)
         }
         Command::View(args) => {
             debug!("args: {:?}", args);
